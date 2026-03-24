@@ -126,22 +126,21 @@ type State = LoadingState | SuccessState | ErrorState;
 export function UserProfile({ id }: UserProfileProps) {
   const [state, setState] = useState<State>({ status: "loading" });
 
-  useEffect(() => {
-    let cancelled = false;
-
+  /** データ取得処理（再試行にも利用） */
+  const load = (targetId: string, signal: { cancelled: boolean }) => {
     setState({ status: "loading" });
 
-    fetchUser(id)
+    fetchUser(targetId)
       .then((user) => {
-        if (!cancelled) setState({ status: "success", user });
+        if (!signal.cancelled) setState({ status: "success", user });
       })
       .catch((err: unknown) => {
-        if (cancelled) return;
+        if (signal.cancelled) return;
 
         if (err instanceof UserNotFoundError) {
           setState({
             status: "error",
-            message: "ユーザーが見つかりません。",
+            message: "指定されたユーザーは存在しません。URLを確認してください。",
             notFound: true,
           });
         } else {
@@ -153,21 +152,34 @@ export function UserProfile({ id }: UserProfileProps) {
           });
         }
       });
+  };
 
+  useEffect(() => {
+    const signal = { cancelled: false };
+    load(id, signal);
     return () => {
-      cancelled = true;
+      signal.cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // ローディング中
+  // ローディング中: スピナー + 視覚的テキストラベルを表示
   if (state.status === "loading") {
     return (
       <div
         aria-label="読み込み中"
-        style={{ display: "flex", justifyContent: "center", padding: "48px" }}
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: "12px",
+          padding: "48px",
+        }}
       >
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         <span
           role="status"
+          aria-hidden="true"
           style={{
             display: "inline-block",
             width: "40px",
@@ -178,12 +190,15 @@ export function UserProfile({ id }: UserProfileProps) {
             animation: "spin 0.8s linear infinite",
           }}
         />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        {/* スクリーンリーダー向けテキスト + 視覚的ラベル */}
+        <span style={{ fontSize: "0.875rem", color: "#64748b" }}>
+          読み込み中...
+        </span>
       </div>
     );
   }
 
-  // エラー
+  // エラー: ユーザーフレンドリーなメッセージ + 再試行ボタンを表示
   if (state.status === "error") {
     return (
       <div
@@ -199,15 +214,41 @@ export function UserProfile({ id }: UserProfileProps) {
           textAlign: "center",
         }}
       >
-        <p style={{ margin: 0, fontWeight: 600 }}>
-          {state.notFound ? "404 - ユーザーが見つかりません" : "エラーが発生しました"}
+        {/* エラー種別の見出し */}
+        <p style={{ margin: "0 0 8px", fontWeight: 700, fontSize: "1rem" }}>
+          {state.notFound ? "ユーザーが見つかりません" : "エラーが発生しました"}
         </p>
-        <p style={{ margin: "8px 0 0", fontSize: "0.875rem" }}>{state.message}</p>
+
+        {/* 詳細メッセージ */}
+        <p style={{ margin: "0 0 16px", fontSize: "0.875rem", color: "#991b1b" }}>
+          {state.message}
+        </p>
+
+        {/* 再試行ボタン（404以外の場合のみ表示） */}
+        {!state.notFound && (
+          <button
+            type="button"
+            onClick={() => load(id, { cancelled: false })}
+            style={{
+              display: "inline-block",
+              padding: "8px 20px",
+              borderRadius: "6px",
+              border: "1px solid #fca5a5",
+              backgroundColor: "#ffffff",
+              color: "#dc2626",
+              fontSize: "0.875rem",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            再試行
+          </button>
+        )}
       </div>
     );
   }
 
-  // 成功
+  // 成功: プロフィールカードを表示
   return (
     <div style={{ padding: "24px 16px" }}>
       <UserProfileCard user={state.user} />

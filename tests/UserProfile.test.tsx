@@ -6,7 +6,7 @@
  */
 
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { UserProfile, UserProfileCard } from "../src/components/UserProfile";
 import { UserNotFoundError, ApiError } from "../src/api/user";
@@ -85,13 +85,16 @@ describe("UserProfile", () => {
     vi.clearAllMocks();
   });
 
-  it("データ取得中はスピナーが表示される", () => {
+  it("データ取得中はスピナーと「読み込み中...」ラベルが表示される", () => {
     // fetchUser が解決しない Promise を返す（ローディング状態を維持）
     mockFetchUser.mockImplementation(() => new Promise(() => {}));
 
     render(<UserProfile id="u_123" />);
 
+    // スピナー要素が存在する
     expect(screen.getByRole("status")).toBeInTheDocument();
+    // 視覚的テキストラベルが表示される
+    expect(screen.getByText("読み込み中...")).toBeInTheDocument();
   });
 
   it("正常取得時にユーザー情報が表示される", async () => {
@@ -107,7 +110,7 @@ describe("UserProfile", () => {
     expect(screen.getByText("TypeScript好きのエンジニアです。")).toBeInTheDocument();
   });
 
-  it("404 エラー時に「ユーザーが見つかりません」が表示される", async () => {
+  it("404 エラー時にユーザーフレンドリーなメッセージが表示され、再試行ボタンは表示されない", async () => {
     mockFetchUser.mockRejectedValue(new UserNotFoundError("u_999"));
 
     render(<UserProfile id="u_999" />);
@@ -117,9 +120,12 @@ describe("UserProfile", () => {
     });
 
     expect(screen.getByText(/ユーザーが見つかりません/)).toBeInTheDocument();
+    expect(screen.getByText(/URLを確認してください/)).toBeInTheDocument();
+    // 404 は再試行しても無意味なのでボタンは表示しない
+    expect(screen.queryByRole("button", { name: "再試行" })).not.toBeInTheDocument();
   });
 
-  it("5xx エラー時に汎用エラーメッセージが表示される", async () => {
+  it("5xx エラー時に汎用エラーメッセージと再試行ボタンが表示される", async () => {
     mockFetchUser.mockRejectedValue(new ApiError(500, "Internal Server Error"));
 
     render(<UserProfile id="u_123" />);
@@ -130,6 +136,32 @@ describe("UserProfile", () => {
 
     expect(screen.getByText(/エラーが発生しました/)).toBeInTheDocument();
     expect(screen.getByText(/再度お試しください/)).toBeInTheDocument();
+    // 再試行ボタンが表示される
+    expect(screen.getByRole("button", { name: "再試行" })).toBeInTheDocument();
+  });
+
+  it("再試行ボタンをクリックするとデータを再取得する", async () => {
+    // 1回目はエラー、2回目は成功
+    mockFetchUser
+      .mockRejectedValueOnce(new ApiError(500, "Internal Server Error"))
+      .mockResolvedValueOnce(mockUser);
+
+    render(<UserProfile id="u_123" />);
+
+    // エラー表示を待つ
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "再試行" })).toBeInTheDocument();
+    });
+
+    // 再試行ボタンをクリック
+    fireEvent.click(screen.getByRole("button", { name: "再試行" }));
+
+    // 2回目の取得成功後にプロフィールが表示される
+    await waitFor(() => {
+      expect(screen.getByText("Akihiro")).toBeInTheDocument();
+    });
+
+    expect(mockFetchUser).toHaveBeenCalledTimes(2);
   });
 
   it("id が変わると再フェッチされる", async () => {
