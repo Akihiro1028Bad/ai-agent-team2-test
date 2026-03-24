@@ -179,7 +179,6 @@ export function UserProfile({ id }: UserProfileProps) {
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         <span
           role="status"
-          aria-hidden="true"
           style={{
             display: "inline-block",
             width: "40px",
