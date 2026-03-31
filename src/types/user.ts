@@ -11,3 +11,9 @@ export interface UserProfile extends User {
   location?: string;
   website?: string;
 }
+
+export interface UserProfileUpdateInput {
+  bio?: string;
+  location?: string;
+  website?: string;
+}

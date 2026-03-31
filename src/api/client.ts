@@ -1,4 +1,4 @@
-import { User, UserProfile } from '../types/user';
+import { User, UserProfile, UserProfileUpdateInput } from '../types/user';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
 
@@ -21,5 +21,18 @@ export async function updateUser(id: string, data: Partial<User>): Promise<User>
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error(`Failed to update user: ${res.status}`);
+  return res.json();
+}
+
+export async function updateUserProfile(
+  id: string,
+  data: UserProfileUpdateInput
+): Promise<UserProfile> {
+  const res = await fetch(`${API_BASE}/users/${id}/profile`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`Failed to update profile: ${res.status}`);
   return res.json();
 }
