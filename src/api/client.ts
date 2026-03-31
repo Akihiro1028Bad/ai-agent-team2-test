@@ -23,3 +23,16 @@ export async function updateUser(id: string, data: Partial<User>): Promise<User>
   if (!res.ok) throw new Error(`Failed to update user: ${res.status}`);
   return res.json();
 }
+
+export async function updateUserProfile(
+  id: string,
+  data: Partial<UserProfile>
+): Promise<UserProfile> {
+  const res = await fetch(`${API_BASE}/users/${id}/profile`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(`Failed to update profile: ${res.status}`);
+  return res.json();
+}
