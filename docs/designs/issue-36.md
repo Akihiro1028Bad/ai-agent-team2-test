@@ -279,6 +279,8 @@ export function useUserProfile(id: string) {
 
 ## 11. テスト方針
 
+### 11.1 テスト項目
+
 | テスト対象 | テスト内容 |
 |-----------|-----------|
 | `useUserProfile` | プロフィール取得・更新の正常系/異常系 |
@@ -286,6 +288,29 @@ export function useUserProfile(id: string) {
 | `ProfileEditForm` | フォーム入力・バリデーション・送信 |
 | `app/profile/page.tsx` | 閲覧モード↔編集モードの切り替え |
 | `app/users/[id]/page.tsx` | URLパラメータからのプロフィール取得・表示 |
+
+### 11.2 テストエビデンス
+
+テスト完了時に、以下のエビデンス（スクリーンショット）を `docs/evidence/issue-36/` ディレクトリに保存する。
+
+| # | エビデンス | ファイル名 | 取得タイミング |
+|---|-----------|-----------|---------------|
+| 1 | プロフィール表示画面（自分） | `profile-view-own.png` | `/profile` ページ表示時 |
+| 2 | プロフィール表示画面（他ユーザー） | `profile-view-other.png` | `/users/[id]` ページ表示時 |
+| 3 | プロフィール編集モード | `profile-edit-mode.png` | 編集ボタン押下後のフォーム表示時 |
+| 4 | プロフィール編集保存成功 | `profile-edit-success.png` | 保存完了後の閲覧モード復帰時 |
+| 5 | バリデーションエラー表示 | `profile-edit-validation-error.png` | `name` 未入力や `website` 不正形式の入力時 |
+| 6 | API エラー表示 | `profile-error.png` | API呼び出し失敗時のエラーメッセージ表示 |
+| 7 | ローディング状態 | `profile-loading.png` | データ取得中のローディング表示 |
+| 8 | ユーザー未発見（404） | `profile-not-found.png` | 存在しないユーザーIDでアクセス時 |
+
+#### エビデンス保存ルール
+
+- ファイル形式: PNG
+- 保存先: `docs/evidence/issue-36/`
+- ブラウザ: Chrome 最新版でのスクリーンショットを基本とする
+- 命名規則: 上記テーブルの `ファイル名` に従う
+- 各スクリーンショットには、ブラウザのURLバーが含まれるようにする（どのパスで表示しているかを明確にするため）
 
 ## 12. 実装順序
 
