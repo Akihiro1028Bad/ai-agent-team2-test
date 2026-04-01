@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { useUserProfile } from '../../src/hooks/useUserProfile';
 import { UserProfileView } from '../../src/components/UserProfileView';
 import { ProfileEditForm } from '../../src/components/ProfileEditForm';
@@ -36,10 +37,13 @@ export default function ProfilePage() {
   }
 
   return (
-    <UserProfileView
-      profile={profile}
-      editable={true}
-      onEdit={() => setIsEditing(true)}
-    />
+    <div>
+      <UserProfileView
+        profile={profile}
+        editable={true}
+        onEdit={() => setIsEditing(true)}
+      />
+      <Link href="/settings/notifications">通知設定</Link>
+    </div>
   );
 }
