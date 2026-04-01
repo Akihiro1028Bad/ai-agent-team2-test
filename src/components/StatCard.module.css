@@ -1,0 +1,30 @@
+.card {
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.06);
+  padding: 24px;
+}
+
+.title {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0 0 8px 0;
+}
+
+.valueContainer {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.value {
+  font-size: 36px;
+  font-weight: bold;
+  margin: 0;
+  color: #111827;
+}
+
+.unit {
+  font-size: 16px;
+  color: #6b7280;
+}

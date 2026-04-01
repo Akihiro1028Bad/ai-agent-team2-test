@@ -1,4 +1,4 @@
-import { User, UserProfile } from '../types/user';
+import { User, UserProfile, UserStats } from '../types/user';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
 
@@ -34,5 +34,11 @@ export async function updateUserProfile(
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error(`Failed to update profile: ${res.status}`);
+  return res.json();
+}
+
+export async function getUserStats(id: string): Promise<UserStats> {
+  const res = await fetch(`${API_BASE}/users/${id}/stats`);
+  if (!res.ok) throw new Error(`Failed to fetch user stats: ${res.status}`);
   return res.json();
 }
