@@ -156,6 +156,52 @@ describe('NotificationSettingsForm', () => {
     });
   });
 
+  it('保存成功メッセージが3秒後に自動で消える', async () => {
+    jest.useFakeTimers();
+    render(<NotificationSettingsForm settings={mockSettings} onSave={mockOnSave} />);
+
+    fireEvent.submit(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('設定を保存しました')).toBeInTheDocument();
+    });
+
+    act(() => {
+      jest.advanceTimersByTime(3000);
+    });
+
+    expect(screen.queryByText('設定を保存しました')).not.toBeInTheDocument();
+    jest.useRealTimers();
+  });
+
+  it('設定変更時に成功メッセージが消える（チェックボックス）', async () => {
+    render(<NotificationSettingsForm settings={mockSettings} onSave={mockOnSave} />);
+
+    fireEvent.submit(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('設定を保存しました')).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByLabelText('メール通知'));
+
+    expect(screen.queryByText('設定を保存しました')).not.toBeInTheDocument();
+  });
+
+  it('設定変更時に成功メッセージが消える（セレクト）', async () => {
+    render(<NotificationSettingsForm settings={mockSettings} onSave={mockOnSave} />);
+
+    fireEvent.submit(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('設定を保存しました')).toBeInTheDocument();
+    });
+
+    await userEvent.selectOptions(screen.getByLabelText('通知頻度'), 'daily');
+
+    expect(screen.queryByText('設定を保存しました')).not.toBeInTheDocument();
+  });
+
   it('一部のpropsのみ変更された場合も正しく反映される', () => {
     const { rerender } = render(
       <NotificationSettingsForm settings={mockSettings} onSave={mockOnSave} />
