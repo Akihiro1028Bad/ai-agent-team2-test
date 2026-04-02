@@ -158,8 +158,6 @@ export function useNotificationHistory() {
 #### 3-2. `src/components/NotificationHistory.tsx`（新規作成）
 
 ```typescript
-'use client';
-
 import React from 'react';
 import {
   NotificationHistoryEntry,
@@ -202,23 +200,23 @@ function formatDateTime(isoString: string): string {
   return `${yyyy}/${mm}/${dd} ${hh}:${min}`;
 }
 
-export const NotificationHistory: React.FC<NotificationHistoryProps> = ({
+export function NotificationHistory({
   history,
   loading,
   error,
-}) => {
+}: NotificationHistoryProps) {
   return (
     <div className={styles.container}>
       <h2 className={styles.title}>変更履歴</h2>
 
-      {loading && <div>読み込み中...</div>}
+      {loading && <p>読み込み中...</p>}
 
       {error && (
-        <div className={styles.errorMessage}>履歴の取得に失敗しました</div>
+        <p className={styles.errorMessage}>履歴の取得に失敗しました</p>
       )}
 
       {!loading && !error && history.length === 0 && (
-        <div className={styles.emptyMessage}>変更履歴はありません</div>
+        <p className={styles.emptyMessage}>変更履歴はありません</p>
       )}
 
       {!loading && !error && history.length > 0 && (
@@ -244,7 +242,7 @@ export const NotificationHistory: React.FC<NotificationHistoryProps> = ({
       )}
     </div>
   );
-};
+}
 ```
 
 #### 3-3. `src/components/NotificationHistory.module.css`（新規作成）
@@ -361,9 +359,8 @@ export default function NotificationSettingsPage() {
 **変更箇所**:
 - `useNotificationHistory` の import を追加
 - `NotificationHistory` コンポーネントの import を追加
-- `NotificationSettings` 型の import を追加（既存）
 - Hook の呼び出しを追加
-- JSX に `<NotificationHistory>` を追加
+- JSX の return を `<>...</>` で囲み `<NotificationHistory>` を追加
 - **重要**: 履歴取得エラーは設定フォームの表示をブロックしない（独立した状態管理）
 
 ---
@@ -406,10 +403,60 @@ describe('useNotificationHistory', () => {
     jest.clearAllMocks();
   });
 
-  it('履歴データを正常に取得できる', async () => { ... });
-  it('ローディング状態が正しく管理される', async () => { ... });
-  it('APIエラー時にエラー状態が設定される', async () => { ... });
-  it('取得データが空配列の場合も正しく処理される', async () => { ... });
+  it('履歴データを正常に取得できる', async () => {
+    mockGetNotificationHistory.mockResolvedValue(mockHistory);
+
+    const { result } = renderHook(() => useNotificationHistory());
+
+    expect(result.current.loading).toBe(true);
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.history).toEqual(mockHistory);
+    expect(result.current.error).toBeNull();
+    expect(mockGetNotificationHistory).toHaveBeenCalledTimes(1);
+  });
+
+  it('ローディング状態が正しく管理される', async () => {
+    mockGetNotificationHistory.mockResolvedValue(mockHistory);
+
+    const { result } = renderHook(() => useNotificationHistory());
+
+    expect(result.current.loading).toBe(true);
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+  });
+
+  it('APIエラー時にエラー状態が設定される', async () => {
+    const error = new Error('Failed to fetch notification history: 500');
+    mockGetNotificationHistory.mockRejectedValue(error);
+
+    const { result } = renderHook(() => useNotificationHistory());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.error).toEqual(error);
+    expect(result.current.history).toEqual([]);
+  });
+
+  it('取得データが空配列の場合も正しく処理される', async () => {
+    mockGetNotificationHistory.mockResolvedValue([]);
+
+    const { result } = renderHook(() => useNotificationHistory());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.history).toEqual([]);
+    expect(result.current.error).toBeNull();
+  });
 });
 ```
 
@@ -446,16 +493,97 @@ const mockHistory: NotificationHistoryEntry[] = [
     oldValue: 'immediate',
     newValue: 'daily',
   },
+  {
+    id: '3',
+    changedAt: '2026-03-28T09:00:00Z',
+    field: 'pushEnabled',
+    oldValue: 'false',
+    newValue: 'true',
+  },
 ];
 
 describe('NotificationHistory', () => {
-  it('履歴データが正しく表示される', () => { ... });
-  it('boolean値がON/OFFで表示される', () => { ... });
-  it('frequency値が日本語ラベルで表示される', () => { ... });
-  it('ローディング中に「読み込み中...」が表示される', () => { ... });
-  it('エラー時に「履歴の取得に失敗しました」が表示される', () => { ... });
-  it('履歴が空の場合に「変更履歴はありません」が表示される', () => { ... });
-  it('複数件の履歴が時系列順に表示される', () => { ... });
+  it('履歴データが正しく表示される（変更日時・フィールド名・変更前後の値）', () => {
+    render(<NotificationHistory history={mockHistory} loading={false} error={null} />);
+
+    expect(screen.getByText('変更履歴')).toBeInTheDocument();
+    const items = screen.getAllByRole('listitem');
+    expect(items).toHaveLength(3);
+  });
+
+  it('boolean値（emailEnabled）がON/OFFで表示される', () => {
+    const history: NotificationHistoryEntry[] = [
+      {
+        id: '1',
+        changedAt: '2026-04-02T10:30:00Z',
+        field: 'emailEnabled',
+        oldValue: 'true',
+        newValue: 'false',
+      },
+    ];
+    render(<NotificationHistory history={history} loading={false} error={null} />);
+
+    expect(screen.getByText('ON')).toBeInTheDocument();
+    expect(screen.getByText('OFF')).toBeInTheDocument();
+  });
+
+  it('boolean値（pushEnabled）がON/OFFで表示される', () => {
+    const history: NotificationHistoryEntry[] = [
+      {
+        id: '1',
+        changedAt: '2026-03-28T09:00:00Z',
+        field: 'pushEnabled',
+        oldValue: 'false',
+        newValue: 'true',
+      },
+    ];
+    render(<NotificationHistory history={history} loading={false} error={null} />);
+
+    expect(screen.getByText('OFF')).toBeInTheDocument();
+    expect(screen.getByText('ON')).toBeInTheDocument();
+  });
+
+  it('frequency値が日本語ラベルで表示される', () => {
+    const history: NotificationHistoryEntry[] = [
+      {
+        id: '1',
+        changedAt: '2026-04-01T15:00:00Z',
+        field: 'frequency',
+        oldValue: 'immediate',
+        newValue: 'daily',
+      },
+    ];
+    render(<NotificationHistory history={history} loading={false} error={null} />);
+
+    expect(screen.getByText('即時')).toBeInTheDocument();
+    expect(screen.getByText('日次ダイジェスト')).toBeInTheDocument();
+  });
+
+  it('ローディング中に「読み込み中...」が表示される', () => {
+    render(<NotificationHistory history={[]} loading={true} error={null} />);
+
+    expect(screen.getByText('読み込み中...')).toBeInTheDocument();
+  });
+
+  it('エラー時に「履歴の取得に失敗しました」が表示される', () => {
+    const error = new Error('API Error');
+    render(<NotificationHistory history={[]} loading={false} error={error} />);
+
+    expect(screen.getByText('履歴の取得に失敗しました')).toBeInTheDocument();
+  });
+
+  it('履歴が空の場合に「変更履歴はありません」が表示される', () => {
+    render(<NotificationHistory history={[]} loading={false} error={null} />);
+
+    expect(screen.getByText('変更履歴はありません')).toBeInTheDocument();
+  });
+
+  it('複数件の履歴が時系列順に表示される', () => {
+    render(<NotificationHistory history={mockHistory} loading={false} error={null} />);
+
+    const items = screen.getAllByRole('listitem');
+    expect(items).toHaveLength(3);
+  });
 });
 ```
 
@@ -463,12 +591,13 @@ describe('NotificationHistory', () => {
 | # | テストケース | 検証内容 |
 |---|-------------|---------|
 | 1 | 履歴データが正しく表示される | 変更日時・フィールド名・変更前後の値が表示される |
-| 2 | boolean値がON/OFFで表示される | `true` → `ON`, `false` → `OFF` |
-| 3 | frequency値が日本語ラベルで表示される | `immediate` → `即時`, `daily` → `日次ダイジェスト` |
-| 4 | ローディング中に「読み込み中...」が表示される | loading=true 時の表示 |
-| 5 | エラー時に「履歴の取得に失敗しました」が表示される | error が設定されている時の表示 |
-| 6 | 履歴が空の場合に「変更履歴はありません」が表示される | history=[] 時の表示 |
-| 7 | 複数件の履歴が時系列順に表示される | リスト内の順序が正しい |
+| 2 | boolean値（emailEnabled）がON/OFFで表示される | `true` → `ON`, `false` → `OFF` |
+| 3 | boolean値（pushEnabled）がON/OFFで表示される | `false` → `OFF`, `true` → `ON` |
+| 4 | frequency値が日本語ラベルで表示される | `immediate` → `即時`, `daily` → `日次ダイジェスト` |
+| 5 | ローディング中に「読み込み中...」が表示される | loading=true 時の表示 |
+| 6 | エラー時に「履歴の取得に失敗しました」が表示される | error が設定されている時の表示 |
+| 7 | 履歴が空の場合に「変更履歴はありません」が表示される | history=[] 時の表示 |
+| 8 | 複数件の履歴が時系列順に表示される | リスト内の順序が正しい |
 
 ---
 
