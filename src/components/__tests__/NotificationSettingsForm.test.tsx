@@ -100,6 +100,26 @@ describe('NotificationSettingsForm', () => {
     });
   });
 
+  it('親コンポーネントからのprops変更がフォームに反映される', () => {
+    const { rerender } = render(
+      <NotificationSettingsForm settings={mockSettings} onSave={mockOnSave} />
+    );
+
+    const updatedSettings: NotificationSettings = {
+      emailEnabled: false,
+      pushEnabled: false,
+      frequency: 'weekly',
+    };
+
+    rerender(
+      <NotificationSettingsForm settings={updatedSettings} onSave={mockOnSave} />
+    );
+
+    expect(screen.getByLabelText('メール通知')).not.toBeChecked();
+    expect(screen.getByLabelText('プッシュ通知')).not.toBeChecked();
+    expect(screen.getByLabelText('通知頻度')).toHaveValue('weekly');
+  });
+
   it('保存成功時に成功メッセージが表示される', async () => {
     render(<NotificationSettingsForm settings={mockSettings} onSave={mockOnSave} />);
 
@@ -108,5 +128,51 @@ describe('NotificationSettingsForm', () => {
     await waitFor(() => {
       expect(screen.getByText('設定を保存しました')).toBeInTheDocument();
     });
+  });
+
+  it('props変更後に保存すると更新された値でonSaveが呼ばれる', async () => {
+    const { rerender } = render(
+      <NotificationSettingsForm settings={mockSettings} onSave={mockOnSave} />
+    );
+
+    const updatedSettings: NotificationSettings = {
+      emailEnabled: false,
+      pushEnabled: false,
+      frequency: 'daily',
+    };
+
+    rerender(
+      <NotificationSettingsForm settings={updatedSettings} onSave={mockOnSave} />
+    );
+
+    fireEvent.submit(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(mockOnSave).toHaveBeenCalledWith({
+        emailEnabled: false,
+        pushEnabled: false,
+        frequency: 'daily',
+      });
+    });
+  });
+
+  it('一部のpropsのみ変更された場合も正しく反映される', () => {
+    const { rerender } = render(
+      <NotificationSettingsForm settings={mockSettings} onSave={mockOnSave} />
+    );
+
+    const partiallyUpdatedSettings: NotificationSettings = {
+      emailEnabled: false,
+      pushEnabled: true,
+      frequency: 'immediate',
+    };
+
+    rerender(
+      <NotificationSettingsForm settings={partiallyUpdatedSettings} onSave={mockOnSave} />
+    );
+
+    expect(screen.getByLabelText('メール通知')).not.toBeChecked();
+    expect(screen.getByLabelText('プッシュ通知')).toBeChecked();
+    expect(screen.getByLabelText('通知頻度')).toHaveValue('immediate');
   });
 });

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NotificationSettings, NotificationFrequency, FREQUENCY_LABELS } from '../types/notification';
 import styles from './NotificationSettingsForm.module.css';
 
@@ -16,6 +16,13 @@ export const NotificationSettingsForm: React.FC<NotificationSettingsFormProps> =
   const [emailEnabled, setEmailEnabled] = useState(settings.emailEnabled);
   const [pushEnabled, setPushEnabled] = useState(settings.pushEnabled);
   const [frequency, setFrequency] = useState<NotificationFrequency>(settings.frequency);
+
+  useEffect(() => {
+    setEmailEnabled(settings.emailEnabled);
+    setPushEnabled(settings.pushEnabled);
+    setFrequency(settings.frequency);
+  }, [settings.emailEnabled, settings.pushEnabled, settings.frequency]);
+
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
