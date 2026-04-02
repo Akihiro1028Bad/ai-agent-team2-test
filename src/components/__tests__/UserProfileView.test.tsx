@@ -93,6 +93,41 @@ describe('UserProfileView', () => {
     expect(screen.getByText('ユーザーが見つかりません')).toBeInTheDocument();
   });
 
+  it('プロトコル無しURLに https:// が補完される', () => {
+    const profileWithoutProtocol: UserProfile = {
+      ...fullProfile,
+      website: 'example.com',
+    };
+    render(
+      <UserProfileView profile={profileWithoutProtocol} editable={false} />
+    );
+
+    const link = screen.getByText('example.com');
+    expect(link).toHaveAttribute('href', 'https://example.com');
+  });
+
+  it('https:// 付きURLはそのまま', () => {
+    render(
+      <UserProfileView profile={fullProfile} editable={false} />
+    );
+
+    const link = screen.getByText('https://example.com');
+    expect(link).toHaveAttribute('href', 'https://example.com');
+  });
+
+  it('http:// 付きURLはそのまま', () => {
+    const profileWithHttp: UserProfile = {
+      ...fullProfile,
+      website: 'http://example.com',
+    };
+    render(
+      <UserProfileView profile={profileWithHttp} editable={false} />
+    );
+
+    const link = screen.getByText('http://example.com');
+    expect(link).toHaveAttribute('href', 'http://example.com');
+  });
+
   it('編集ボタンクリックで onEdit が呼ばれる', () => {
     const onEdit = jest.fn();
     render(
