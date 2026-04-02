@@ -9,8 +9,8 @@ interface UserCardProps {
 export const UserCard: React.FC<UserCardProps> = ({ user, onClick }) => {
   return (
     <div className="user-card" onClick={() => onClick?.(user)}>
-      <img src={user.avatarUrl || '/default-avatar.png'} alt={user.name} />
-      <h3>{user.name}</h3>
+      <img src={user.avatarUrl || '/default-avatar.png'} alt={user.name || '名前未設定'} />
+      <h3>{user.name || '名前未設定'}</h3>
       <p>{user.email}</p>
     </div>
   );
