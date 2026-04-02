@@ -148,6 +148,61 @@ describe('ProfileEditForm', () => {
     expect(mockOnCancel).toHaveBeenCalledTimes(1);
   });
 
+  it('bio の文字数カウンターが表示される', () => {
+    render(
+      <ProfileEditForm
+        profile={mockProfile}
+        onSave={mockOnSave}
+        onCancel={mockOnCancel}
+      />
+    );
+
+    const charCount = screen.getByTestId('bio-char-count');
+    expect(charCount).toBeInTheDocument();
+    expect(charCount).toHaveTextContent('7/200');
+  });
+
+  it('bio が200文字を超える場合にバリデーションエラーが表示される', async () => {
+    render(
+      <ProfileEditForm
+        profile={{ ...mockProfile, bio: '' }}
+        onSave={mockOnSave}
+        onCancel={mockOnCancel}
+      />
+    );
+
+    const bioTextarea = screen.getByLabelText('自己紹介');
+    // fireEvent.change で maxLength をバイパスして201文字をセット
+    fireEvent.change(bioTextarea, { target: { value: 'あ'.repeat(201) } });
+
+    fireEvent.submit(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('自己紹介は200文字以内で入力してください')).toBeInTheDocument();
+    });
+
+    expect(mockOnSave).not.toHaveBeenCalled();
+  });
+
+  it('bio が200文字ちょうどの場合は保存できる', async () => {
+    render(
+      <ProfileEditForm
+        profile={{ ...mockProfile, bio: '' }}
+        onSave={mockOnSave}
+        onCancel={mockOnCancel}
+      />
+    );
+
+    const bioTextarea = screen.getByLabelText('自己紹介');
+    fireEvent.change(bioTextarea, { target: { value: 'あ'.repeat(200) } });
+
+    fireEvent.submit(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(mockOnSave).toHaveBeenCalled();
+    });
+  });
+
   it('保存中はボタンが無効化される', async () => {
     let resolveOnSave: () => void;
     mockOnSave.mockImplementation(

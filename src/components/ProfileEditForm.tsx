@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import { UserProfile } from '../types/user';
 import styles from './ProfileEditForm.module.css';
 
+const BIO_MAX_LENGTH = 200;
+
 interface ProfileEditFormProps {
   profile: UserProfile;
   onSave: (data: Partial<UserProfile>) => Promise<void>;
@@ -35,8 +37,8 @@ export const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
     if (!name.trim()) {
       newErrors.name = '名前は必須です';
     }
-    if (bio.length > 500) {
-      newErrors.bio = '自己紹介は500文字以内で入力してください';
+    if (bio.length > BIO_MAX_LENGTH) {
+      newErrors.bio = `自己紹介は${BIO_MAX_LENGTH}文字以内で入力してください`;
     }
     if (location.length > 100) {
       newErrors.location = '所在地は100文字以内で入力してください';
@@ -97,8 +99,14 @@ export const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
           id="bio"
           value={bio}
           onChange={(e) => setBio(e.target.value)}
-          maxLength={500}
+          maxLength={BIO_MAX_LENGTH}
         />
+        <div
+          className={`${styles.charCount} ${bio.length > BIO_MAX_LENGTH - 20 ? styles.charCountWarning : ''}`}
+          data-testid="bio-char-count"
+        >
+          {bio.length}/{BIO_MAX_LENGTH}
+        </div>
         {errors.bio && <div className={styles.fieldError}>{errors.bio}</div>}
       </div>
 
