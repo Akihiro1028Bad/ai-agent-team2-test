@@ -2,6 +2,13 @@ import React from 'react';
 import { UserProfile } from '../types/user';
 import styles from './UserProfileView.module.css';
 
+function ensureProtocol(url: string): string {
+  if (/^https?:\/\//i.test(url)) {
+    return url;
+  }
+  return `https://${url}`;
+}
+
 interface UserProfileViewProps {
   profile: UserProfile | null | undefined;
   editable: boolean;
@@ -53,7 +60,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
         <div className={styles.section}>
           <div className={styles.label}>Webサイト</div>
           <p className={styles.value}>
-            <a href={profile.website} target="_blank" rel="noopener noreferrer">
+            <a href={ensureProtocol(profile.website)} target="_blank" rel="noopener noreferrer">
               {profile.website}
             </a>
           </p>
