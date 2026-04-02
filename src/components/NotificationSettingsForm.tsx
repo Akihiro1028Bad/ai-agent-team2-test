@@ -27,6 +27,15 @@ export const NotificationSettingsForm: React.FC<NotificationSettingsFormProps> =
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  useEffect(() => {
+    if (saveSuccess) {
+      const timer = setTimeout(() => {
+        setSaveSuccess(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [saveSuccess]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
@@ -58,7 +67,7 @@ export const NotificationSettingsForm: React.FC<NotificationSettingsFormProps> =
           type="checkbox"
           role="switch"
           checked={emailEnabled}
-          onChange={(e) => setEmailEnabled(e.target.checked)}
+          onChange={(e) => { setEmailEnabled(e.target.checked); setSaveSuccess(false); }}
         />
       </div>
 
@@ -74,7 +83,7 @@ export const NotificationSettingsForm: React.FC<NotificationSettingsFormProps> =
           type="checkbox"
           role="switch"
           checked={pushEnabled}
-          onChange={(e) => setPushEnabled(e.target.checked)}
+          onChange={(e) => { setPushEnabled(e.target.checked); setSaveSuccess(false); }}
         />
       </div>
 
@@ -85,7 +94,7 @@ export const NotificationSettingsForm: React.FC<NotificationSettingsFormProps> =
         <select
           id="frequency"
           value={frequency}
-          onChange={(e) => setFrequency(e.target.value as NotificationFrequency)}
+          onChange={(e) => { setFrequency(e.target.value as NotificationFrequency); setSaveSuccess(false); }}
         >
           {(Object.entries(FREQUENCY_LABELS) as [NotificationFrequency, string][]).map(
             ([value, label]) => (
