@@ -128,6 +128,55 @@ describe('UserProfileView', () => {
     expect(link).toHaveAttribute('href', 'http://example.com');
   });
 
+  it('createdAt が文字列の場合も正常に表示される', () => {
+    const profileWithStringDate: UserProfile = {
+      ...fullProfile,
+      createdAt: '2024-01-01T00:00:00Z',
+    };
+    render(
+      <UserProfileView profile={profileWithStringDate} editable={false} />
+    );
+
+    expect(screen.getByText(/登録日:/)).toBeInTheDocument();
+    expect(screen.queryByText(/不明/)).not.toBeInTheDocument();
+  });
+
+  it('createdAt が null の場合「不明」が表示される', () => {
+    const profileWithNullDate = {
+      ...fullProfile,
+      createdAt: null as any,
+    };
+    render(
+      <UserProfileView profile={profileWithNullDate} editable={false} />
+    );
+
+    expect(screen.getByText(/不明/)).toBeInTheDocument();
+  });
+
+  it('createdAt が undefined の場合「不明」が表示される', () => {
+    const profileWithUndefinedDate = {
+      ...fullProfile,
+      createdAt: undefined as any,
+    };
+    render(
+      <UserProfileView profile={profileWithUndefinedDate} editable={false} />
+    );
+
+    expect(screen.getByText(/不明/)).toBeInTheDocument();
+  });
+
+  it('createdAt が不正な文字列の場合「不明」が表示される', () => {
+    const profileWithInvalidDate = {
+      ...fullProfile,
+      createdAt: 'invalid-date' as any,
+    };
+    render(
+      <UserProfileView profile={profileWithInvalidDate} editable={false} />
+    );
+
+    expect(screen.getByText(/不明/)).toBeInTheDocument();
+  });
+
   it('編集ボタンクリックで onEdit が呼ばれる', () => {
     const onEdit = jest.fn();
     render(

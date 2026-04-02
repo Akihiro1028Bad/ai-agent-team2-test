@@ -2,6 +2,12 @@ import React from 'react';
 import { UserProfile } from '../types/user';
 import styles from './UserProfileView.module.css';
 
+function formatDate(value: unknown, fallback = '不明'): string {
+  if (value == null) return fallback;
+  const date = value instanceof Date ? value : new Date(value as string | number);
+  return isNaN(date.getTime()) ? fallback : date.toLocaleDateString('ja-JP');
+}
+
 function ensureProtocol(url: string): string {
   if (/^https?:\/\//i.test(url)) {
     return url;
@@ -68,7 +74,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
       )}
 
       <div className={styles.meta}>
-        登録日: {new Date(profile.createdAt).toLocaleDateString('ja-JP')}
+        登録日: {formatDate(profile.createdAt)}
       </div>
 
       {editable && (

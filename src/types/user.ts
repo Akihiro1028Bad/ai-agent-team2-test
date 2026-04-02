@@ -3,7 +3,7 @@ export interface User {
   name: string;
   email: string;
   avatarUrl?: string;
-  createdAt: Date;
+  createdAt: Date | string;
 }
 
 export interface UserProfile extends User {
