@@ -2,11 +2,18 @@
 
 import React from 'react';
 import { useNotificationSettings } from '../../../src/hooks/useNotificationSettings';
+import { useNotificationHistory } from '../../../src/hooks/useNotificationHistory';
 import { NotificationSettingsForm } from '../../../src/components/NotificationSettingsForm';
+import { NotificationHistory } from '../../../src/components/NotificationHistory';
 import { NotificationSettings } from '../../../src/types/notification';
 
 export default function NotificationSettingsPage() {
   const { settings, loading, error, saveSettings } = useNotificationSettings();
+  const {
+    history,
+    loading: historyLoading,
+    error: historyError,
+  } = useNotificationHistory();
 
   if (loading) return <div>読み込み中...</div>;
   if (error) return <div>エラーが発生しました: {error.message}</div>;
@@ -16,9 +23,13 @@ export default function NotificationSettingsPage() {
   };
 
   return (
-    <NotificationSettingsForm
-      settings={settings}
-      onSave={handleSave}
-    />
+    <>
+      <NotificationSettingsForm settings={settings} onSave={handleSave} />
+      <NotificationHistory
+        history={history}
+        loading={historyLoading}
+        error={historyError}
+      />
+    </>
   );
 }

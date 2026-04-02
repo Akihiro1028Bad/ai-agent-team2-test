@@ -29,3 +29,28 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   pushEnabled: true,
   frequency: 'immediate',
 };
+
+/**
+ * 通知設定の変更対象フィールド
+ */
+export type NotificationSettingField = keyof NotificationSettings;
+
+/**
+ * 通知設定フィールドの表示ラベル
+ */
+export const SETTING_FIELD_LABELS: Record<NotificationSettingField, string> = {
+  emailEnabled: 'メール通知',
+  pushEnabled: 'プッシュ通知',
+  frequency: '通知頻度',
+};
+
+/**
+ * 通知設定の変更履歴エントリ
+ */
+export interface NotificationHistoryEntry {
+  id: string;
+  changedAt: string;  // ISO 8601 形式
+  field: NotificationSettingField;
+  oldValue: string;
+  newValue: string;
+}

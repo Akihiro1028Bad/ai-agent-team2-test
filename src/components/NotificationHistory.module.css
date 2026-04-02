@@ -1,0 +1,60 @@
+.container {
+  max-width: 600px;
+  margin: 24px auto 0;
+  padding: 24px;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 16px;
+}
+
+.historyList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.historyItem {
+  padding: 12px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.historyItem:last-child {
+  border-bottom: none;
+}
+
+.changedAt {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 4px;
+}
+
+.changeDetail {
+  font-size: 14px;
+}
+
+.oldValue {
+  color: #e00;
+  text-decoration: line-through;
+}
+
+.newValue {
+  color: #0a0;
+  font-weight: bold;
+}
+
+.emptyMessage {
+  color: #888;
+  font-size: 14px;
+  padding: 16px 0;
+}
+
+.errorMessage {
+  color: #e00;
+  font-size: 14px;
+  padding: 8px 12px;
+  background: #fff0f0;
+  border-radius: 6px;
+}
