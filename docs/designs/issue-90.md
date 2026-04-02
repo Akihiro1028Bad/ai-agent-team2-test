@@ -171,7 +171,7 @@ export const ACTION_ICONS: Record<ActivityAction, string> = {
 | パラメータ | 型 | デフォルト | 説明 |
 |-----------|-----|-----------|------|
 | `page` | `number` | `1` | ページ番号（1始まり） |
-| `limit` | `number` | `20` | 1ページあたりの件数 |
+| `limit` | `number` | `20` | 1ページあたりの件数（最大100） |
 
 **レスポンス（200 OK）**:
 ```json
@@ -181,14 +181,14 @@ export const ACTION_ICONS: Record<ActivityAction, string> = {
       "id": "act-1",
       "userId": "user-1",
       "action": "login",
-      "timestamp": "2025-01-15T10:30:00Z",
+      "timestamp": "2025-01-15T12:00:00.000Z",
       "details": null
     },
     {
       "id": "act-2",
       "userId": "user-1",
       "action": "profile_update",
-      "timestamp": "2025-01-15T09:00:00Z",
+      "timestamp": "2025-01-15T11:00:00.000Z",
       "details": { "field": "name", "oldValue": "太郎", "newValue": "花太郎" }
     }
   ],
@@ -196,6 +196,13 @@ export const ACTION_ICONS: Record<ActivityAction, string> = {
   "page": 1,
   "limit": 20,
   "hasNext": true
+}
+```
+
+**エラーレスポンス（400 Bad Request）**:
+```json
+{
+  "error": "不正なクエリパラメータです"
 }
 ```
 
@@ -292,10 +299,11 @@ export async function GET(
 
 ### 4.3 モックデータの設計意図
 
-- 25件のアクティビティを生成し、ページネーションの動作確認が可能なデータ量とする
+- 25件のアクティビティを生成し、ページネーションの動作確認が可能なデータ量とする（デフォルト `limit=20` で2ページに分かれる）
 - 全4種類のアクション種別を含め、`details` フィールドの `null` / オブジェクトの両パターンをカバー
 - `timestamp` は1時間間隔で降順に生成（新しい順）
 - `limit` の上限を100に制限し、過大なリクエストを防止
+- `generateMockActivities` 関数として分離し、リクエストごとに `userId` を動的に設定
 
 ## 5. APIクライアント
 
@@ -363,7 +371,7 @@ export async function getUserActivities(
 
 ### 7.2 モックデータの取り扱い
 
-- Route Handler ではリクエストごとにモックデータを生成する（インメモリ保持不要、読み取り専用）
+- Route Handler ではリクエストごとにモックデータを生成する（インメモリ保持不要、読み取り専用のため）
 - 実際のDB連携は後続Issueで対応
 - モックデータを使用していることをコード内コメントで明記する
 
