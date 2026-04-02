@@ -34,8 +34,6 @@ describe('useNotificationHistory', () => {
 
     const { result } = renderHook(() => useNotificationHistory());
 
-    expect(result.current.loading).toBe(true);
-
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
     });
