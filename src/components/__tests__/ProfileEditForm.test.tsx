@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { act } from '@testing-library/react';
 import { ProfileEditForm } from '../ProfileEditForm';
 import { UserProfile } from '../../types/user';
 
@@ -75,7 +76,7 @@ describe('ProfileEditForm', () => {
     expect(mockOnSave).not.toHaveBeenCalled();
   });
 
-  it('website が https:// で始まらない場合にバリデーションエラー', async () => {
+  it('website が不正な形式の場合にバリデーションエラー', async () => {
     render(
       <ProfileEditForm
         profile={{ ...mockProfile, website: '' }}
@@ -85,12 +86,14 @@ describe('ProfileEditForm', () => {
     );
 
     const websiteInput = screen.getByLabelText('Webサイト');
-    await userEvent.type(websiteInput, 'http://example.com');
+    await userEvent.type(websiteInput, 'not-a-url');
 
     fireEvent.submit(screen.getByRole('button', { name: '保存' }));
 
     await waitFor(() => {
-      expect(screen.getByText('URLは https:// で始めてください')).toBeInTheDocument();
+      expect(
+        screen.getByText('URLは http:// または https:// で始まる正しい形式で入力してください')
+      ).toBeInTheDocument();
     });
 
     expect(mockOnSave).not.toHaveBeenCalled();
@@ -174,7 +177,153 @@ describe('ProfileEditForm', () => {
       resolveOnSave!();
     });
   });
-});
 
-// act を import
-import { act } from '@testing-library/react';
+  // --- 新規テストケース ---
+
+  it('名前が51文字以上の場合にバリデーションエラーが表示される', async () => {
+    render(
+      <ProfileEditForm
+        profile={{ ...mockProfile, name: '' }}
+        onSave={mockOnSave}
+        onCancel={mockOnCancel}
+      />
+    );
+
+    const nameInput = screen.getByLabelText('名前 *');
+    // fireEvent.change で直接51文字を設定（maxLength属性をバイパス）
+    fireEvent.change(nameInput, { target: { value: 'あ'.repeat(51) } });
+
+    fireEvent.submit(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('名前は50文字以内で入力してください')).toBeInTheDocument();
+    });
+
+    expect(mockOnSave).not.toHaveBeenCalled();
+  });
+
+  it('自己紹介が201文字以上の場合にバリデーションエラーが表示される', async () => {
+    render(
+      <ProfileEditForm
+        profile={{ ...mockProfile, bio: '' }}
+        onSave={mockOnSave}
+        onCancel={mockOnCancel}
+      />
+    );
+
+    const bioInput = screen.getByLabelText('自己紹介');
+    // fireEvent.change で直接201文字を設定（maxLength属性をバイパス）
+    fireEvent.change(bioInput, { target: { value: 'あ'.repeat(201) } });
+
+    fireEvent.submit(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('自己紹介は200文字以内で入力してください')).toBeInTheDocument();
+    });
+
+    expect(mockOnSave).not.toHaveBeenCalled();
+  });
+
+  it('websiteが http:// の場合はバリデーションエラーにならない', async () => {
+    render(
+      <ProfileEditForm
+        profile={{ ...mockProfile, website: '' }}
+        onSave={mockOnSave}
+        onCancel={mockOnCancel}
+      />
+    );
+
+    const websiteInput = screen.getByLabelText('Webサイト');
+    await userEvent.type(websiteInput, 'http://example.com');
+
+    fireEvent.submit(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(mockOnSave).toHaveBeenCalled();
+    });
+
+    expect(
+      screen.queryByText('URLは http:// または https:// で始まる正しい形式で入力してください')
+    ).not.toBeInTheDocument();
+  });
+
+  it('websiteが不正な形式の場合にエラーメッセージが表示される', async () => {
+    render(
+      <ProfileEditForm
+        profile={{ ...mockProfile, website: '' }}
+        onSave={mockOnSave}
+        onCancel={mockOnCancel}
+      />
+    );
+
+    const websiteInput = screen.getByLabelText('Webサイト');
+    await userEvent.type(websiteInput, 'invalid-url');
+
+    fireEvent.submit(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('URLは http:// または https:// で始まる正しい形式で入力してください')
+      ).toBeInTheDocument();
+    });
+  });
+
+  it('onBlurでバリデーションが発火する', async () => {
+    render(
+      <ProfileEditForm
+        profile={mockProfile}
+        onSave={mockOnSave}
+        onCancel={mockOnCancel}
+      />
+    );
+
+    const nameInput = screen.getByDisplayValue('テストユーザー');
+    await userEvent.clear(nameInput);
+    fireEvent.blur(nameInput);
+
+    await waitFor(() => {
+      expect(screen.getByText('名前は必須です')).toBeInTheDocument();
+    });
+  });
+
+  it('バリデーションエラー時に送信ボタンがdisabledになる', async () => {
+    render(
+      <ProfileEditForm
+        profile={mockProfile}
+        onSave={mockOnSave}
+        onCancel={mockOnCancel}
+      />
+    );
+
+    const nameInput = screen.getByDisplayValue('テストユーザー');
+    await userEvent.clear(nameInput);
+    fireEvent.blur(nameInput);
+
+    await waitFor(() => {
+      expect(screen.getByText('名前は必須です')).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole('button', { name: '保存' })).toBeDisabled();
+  });
+
+  it('文字数カウンターが表示される', async () => {
+    render(
+      <ProfileEditForm
+        profile={{ ...mockProfile, bio: 'テスト' }}
+        onSave={mockOnSave}
+        onCancel={mockOnCancel}
+      />
+    );
+
+    // 初期値の文字数カウンター
+    expect(screen.getByText('3/200')).toBeInTheDocument();
+
+    // 入力後の文字数カウンター変化
+    const bioInput = screen.getByLabelText('自己紹介');
+    await userEvent.type(bioInput, 'ABC');
+
+    await waitFor(() => {
+      expect(screen.getByText('6/200')).toBeInTheDocument();
+    });
+  });
+});

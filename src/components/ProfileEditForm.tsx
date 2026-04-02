@@ -2,19 +2,38 @@
 
 import React, { useState } from 'react';
 import { UserProfile } from '../types/user';
+import { useFormValidation } from '../hooks/useFormValidation';
+import { ValidationRules } from '../types/validation';
 import styles from './ProfileEditForm.module.css';
+
+type ProfileFormField = 'name' | 'bio' | 'location' | 'website';
+
+const URL_REGEX = /^https?:\/\/[^\s/$.?#].[^\s]*$/;
+
+const PROFILE_VALIDATION_RULES: ValidationRules<ProfileFormField> = {
+  name: [
+    { type: 'required', message: '名前は必須です' },
+    { type: 'maxLength', maxLength: 50, message: '名前は50文字以内で入力してください' },
+  ],
+  bio: [
+    { type: 'maxLength', maxLength: 200, message: '自己紹介は200文字以内で入力してください' },
+  ],
+  location: [
+    { type: 'maxLength', maxLength: 100, message: '所在地は100文字以内で入力してください' },
+  ],
+  website: [
+    {
+      type: 'pattern',
+      pattern: URL_REGEX,
+      message: 'URLは http:// または https:// で始まる正しい形式で入力してください',
+    },
+  ],
+};
 
 interface ProfileEditFormProps {
   profile: UserProfile;
   onSave: (data: Partial<UserProfile>) => Promise<void>;
   onCancel: () => void;
-}
-
-interface FormErrors {
-  name?: string;
-  bio?: string;
-  location?: string;
-  website?: string;
 }
 
 export const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
@@ -26,31 +45,25 @@ export const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
   const [bio, setBio] = useState(profile.bio || '');
   const [location, setLocation] = useState(profile.location || '');
   const [website, setWebsite] = useState(profile.website || '');
-  const [errors, setErrors] = useState<FormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const validate = (): FormErrors => {
-    const newErrors: FormErrors = {};
-    if (!name.trim()) {
-      newErrors.name = '名前は必須です';
-    }
-    if (bio.length > 500) {
-      newErrors.bio = '自己紹介は500文字以内で入力してください';
-    }
-    if (location.length > 100) {
-      newErrors.location = '所在地は100文字以内で入力してください';
-    }
-    if (website && !website.startsWith('https://')) {
-      newErrors.website = 'URLは https:// で始めてください';
-    }
-    return newErrors;
+  const { errors, validateField, validateAll, hasErrors } =
+    useFormValidation<ProfileFormField>(PROFILE_VALIDATION_RULES);
+
+  const handleBlur = (field: ProfileFormField, value: string) => {
+    validateField(field, value);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const validationErrors = validate();
-    setErrors(validationErrors);
+
+    const validationErrors = validateAll({
+      name,
+      bio,
+      location,
+      website,
+    });
     if (Object.keys(validationErrors).length > 0) return;
 
     setIsSaving(true);
@@ -82,6 +95,9 @@ export const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
+          onBlur={() => handleBlur('name', name)}
+          maxLength={50}
+          className={errors.name ? styles.inputError : undefined}
         />
         {errors.name && <div className={styles.fieldError}>{errors.name}</div>}
       </div>
@@ -97,8 +113,11 @@ export const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
           id="bio"
           value={bio}
           onChange={(e) => setBio(e.target.value)}
-          maxLength={500}
+          onBlur={() => handleBlur('bio', bio)}
+          maxLength={200}
+          className={errors.bio ? styles.inputError : undefined}
         />
+        <div className={styles.charCount}>{bio.length}/200</div>
         {errors.bio && <div className={styles.fieldError}>{errors.bio}</div>}
       </div>
 
@@ -109,7 +128,9 @@ export const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
           type="text"
           value={location}
           onChange={(e) => setLocation(e.target.value)}
+          onBlur={() => handleBlur('location', location)}
           maxLength={100}
+          className={errors.location ? styles.inputError : undefined}
         />
         {errors.location && (
           <div className={styles.fieldError}>{errors.location}</div>
@@ -123,7 +144,9 @@ export const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
           type="url"
           value={website}
           onChange={(e) => setWebsite(e.target.value)}
+          onBlur={() => handleBlur('website', website)}
           placeholder="https://example.com"
+          className={errors.website ? styles.inputError : undefined}
         />
         {errors.website && (
           <div className={styles.fieldError}>{errors.website}</div>
@@ -143,7 +166,7 @@ export const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
         <button
           type="submit"
           className={styles.saveButton}
-          disabled={isSaving}
+          disabled={isSaving || hasErrors}
         >
           {isSaving ? '保存中...' : '保存'}
         </button>
