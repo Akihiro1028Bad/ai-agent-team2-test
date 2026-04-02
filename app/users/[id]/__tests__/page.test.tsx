@@ -62,6 +62,16 @@ describe('UserProfilePage', () => {
     });
   });
 
+  it('プロフィールが見つからない場合「ユーザーが見つかりません」が表示される', async () => {
+    mockGetUserProfile.mockResolvedValue(null as any);
+
+    render(<UserProfilePage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('ユーザーが見つかりません')).toBeInTheDocument();
+    });
+  });
+
   it('ローディング中は「読み込み中...」が表示される', () => {
     mockGetUserProfile.mockReturnValue(new Promise(() => {}));
 
