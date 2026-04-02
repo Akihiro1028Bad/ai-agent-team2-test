@@ -2,11 +2,12 @@
 
 ## 1. 概要
 
-通知設定フォームに、現在の設定でどのような通知が届くかのプレビュー表示を追加する。
+通知設定フォーム（`NotificationSettingsForm`）に、現在の設定でどのような通知が届くかをリアルタイムでプレビュー表示するセクションを追加する。
 
 - 現在の設定に基づくプレビューメッセージ表示（例: 「メール通知: ON、即時配信」）
 - 設定変更時にリアルタイムでプレビュー更新
 - カスタムhook（`useNotificationPreview`）でプレビューロジックを分離
+- テストの追加
 
 ### 1.1 背景
 
@@ -35,7 +36,7 @@
 | **型定義** | `src/types/notification.ts` | `NotificationSettings`, `NotificationFrequency`, `FREQUENCY_LABELS` 定義済み | ⚠️ 変更（`NotificationPreview` 型を追加） |
 | **コンポーネント** | `src/components/NotificationSettingsForm.tsx` | 通知設定フォーム実装済み | ⚠️ 変更（プレビューセクション追加） |
 | **CSS** | `src/components/NotificationSettingsForm.module.css` | フォームスタイル実装済み | ⚠️ 変更（プレビューセクションのスタイル追加） |
-| **テスト** | `src/components/__tests__/NotificationSettingsForm.test.tsx` | フォームのユニットテスト実装済み | ⚠️ 変更（プレビュー関連テスト追加） |
+| **テスト** | `src/components/__tests__/NotificationSettingsForm.test.tsx` | フォームのユニットテスト実装済み（13件） | ⚠️ 変更（プレビュー関連テスト追加） |
 | **Hook** | `src/hooks/useNotificationSettings.ts` | 設定取得・更新ロジック | ✅ 変更なし |
 | **ページ** | `app/settings/notifications/page.tsx` | 通知設定ページ | ✅ 変更なし |
 | **APIクライアント** | `src/api/notificationClient.ts` | 通知設定API関数 | ✅ 変更なし |
@@ -71,6 +72,8 @@ export const FREQUENCY_LABELS: Record<NotificationFrequency, string> = {
 
 ### 3.1 プレビューセクションの UI
 
+プレビューセクションは、フォームの設定項目（通知頻度）の下、エラー/成功メッセージ・保存ボタンの上に配置する。
+
 ```
 ┌──────────────────────────────────────────┐
 │  通知設定                                 │
@@ -86,13 +89,14 @@ export const FREQUENCY_LABELS: Record<NotificationFrequency, string> = {
 │  └────────────────────────────────────┘  │
 │                                          │
 │  ┌────────────────────────────────────┐  │
-│  │ 📋 通知プレビュー                  │  │  ← 新規追加
+│  │ 通知プレビュー                     │  │  ← 新規追加
 │  │                                    │  │
 │  │  • メール通知: ON、即時配信        │  │
 │  │  • プッシュ通知: ON、即時配信      │  │
 │  │                                    │  │
 │  └────────────────────────────────────┘  │
 │                                          │
+│  {エラー/成功メッセージ}                 │
 │  [保存]                                  │
 └──────────────────────────────────────────┘
 ```
@@ -254,7 +258,7 @@ export function useNotificationPreview({
 
 1. `useNotificationPreview` hook のインポート追加
 2. hook 呼び出し追加
-3. プレビューセクションの JSX 追加（保存ボタンの前に配置）
+3. プレビューセクションの JSX 追加（通知頻度セクションの後、エラー/成功メッセージの前に配置）
 
 #### 変更後のコンポーネント構造
 
@@ -306,6 +310,8 @@ export const NotificationSettingsForm: React.FC<NotificationSettingsFormProps> =
   );
 };
 ```
+
+**Props の変更**: なし（既存のPropsインターフェースは変更不要）
 
 ### 6.2 変更: `NotificationSettingsForm.module.css`
 
@@ -479,7 +485,7 @@ src/types/notification.ts（変更: NotificationPreview 型追加）
 
 - プレビューセクションは既存のフォーム要素と保存ボタンの間に挿入する
 - 既存の状態管理やイベントハンドラには変更を加えない
-- 既存テストが引き続きパスすることを確認する
+- 既存テスト（13件）が引き続きパスすることを確認する
 
 ### 12.2 パフォーマンス
 
