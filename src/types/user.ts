@@ -11,3 +11,10 @@ export interface UserProfile extends User {
   location?: string;
   website?: string;
 }
+
+/**
+ * ユーザー検索パラメータ
+ */
+export interface SearchParams {
+  query: string;
+}
