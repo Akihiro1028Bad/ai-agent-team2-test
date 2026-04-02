@@ -79,6 +79,20 @@ describe('UserProfileView', () => {
     expect(screen.queryByText('プロフィールを編集')).not.toBeInTheDocument();
   });
 
+  it('profile が null の場合「ユーザーが見つかりません」が表示される', () => {
+    render(
+      <UserProfileView profile={null} editable={false} />
+    );
+    expect(screen.getByText('ユーザーが見つかりません')).toBeInTheDocument();
+  });
+
+  it('profile が null の場合に編集ボタンが表示されない', () => {
+    render(
+      <UserProfileView profile={null} editable={true} onEdit={jest.fn()} />
+    );
+    expect(screen.queryByText('プロフィールを編集')).not.toBeInTheDocument();
+  });
+
   it('編集ボタンクリックで onEdit が呼ばれる', () => {
     const onEdit = jest.fn();
     render(

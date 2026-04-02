@@ -3,7 +3,7 @@ import { UserProfile } from '../types/user';
 import styles from './UserProfileView.module.css';
 
 interface UserProfileViewProps {
-  profile: UserProfile;
+  profile: UserProfile | null;
   editable: boolean;
   onEdit?: () => void;
 }
@@ -13,6 +13,14 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
   editable,
   onEdit,
 }) => {
+  if (!profile) {
+    return (
+      <div className={styles.container}>
+        <p>ユーザーが見つかりません</p>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.container}>
       <div className={styles.header}>
