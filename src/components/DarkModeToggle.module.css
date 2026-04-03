@@ -1,0 +1,31 @@
+.toggleButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background-color: var(--button-bg);
+  color: var(--button-color);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
+}
+
+.toggleButton:hover {
+  background-color: var(--button-hover-bg);
+}
+
+.icon {
+  font-size: 16px;
+}
+
+.label {
+  font-size: 14px;
+}
+
+@media (max-width: 480px) {
+  .label {
+    display: none;
+  }
+}

@@ -1,0 +1,30 @@
+/* ライトモード（デフォルト）*/
+:root,
+[data-theme="light"] {
+  --bg-color: #ffffff;
+  --text-color: #333333;
+  --header-bg: #f8f9fa;
+  --header-border: #eeeeee;
+  --border-color: #dddddd;
+  --button-bg: #f0f0f0;
+  --button-color: #333333;
+  --button-hover-bg: #e0e0e0;
+}
+
+/* ダークモード */
+[data-theme="dark"] {
+  --bg-color: #1a1a2e;
+  --text-color: #e0e0e0;
+  --header-bg: #16213e;
+  --header-border: #2a2a4a;
+  --border-color: #444444;
+  --button-bg: #2a2a4a;
+  --button-color: #e0e0e0;
+  --button-hover-bg: #3a3a5a;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
