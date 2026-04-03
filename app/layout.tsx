@@ -1,4 +1,6 @@
 import React from 'react';
+import { Header } from '../src/components/Header';
+import './globals.css';
 
 export const metadata = {
   title: 'Sample App',
@@ -12,7 +14,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ja">
-      <body>{children}</body>
+      <body>
+        <Header />
+        {children}
+      </body>
     </html>
   );
 }
