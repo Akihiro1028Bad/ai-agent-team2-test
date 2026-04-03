@@ -1,0 +1,12 @@
+.userList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.emptyMessage {
+  text-align: center;
+  color: #666;
+  padding: 24px;
+  font-size: 14px;
+}

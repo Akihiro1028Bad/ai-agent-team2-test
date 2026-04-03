@@ -46,3 +46,12 @@ export async function updateUserProfile(
   if (!res.ok) throw new Error(`Failed to update profile: ${res.status}`);
   return res.json();
 }
+
+/**
+ * ユーザー一覧を取得する
+ */
+export async function getUsers(): Promise<User[]> {
+  const res = await fetch(`${API_BASE}/users`);
+  if (!res.ok) throw new Error(`Failed to fetch users: ${res.status}`);
+  return res.json();
+}
