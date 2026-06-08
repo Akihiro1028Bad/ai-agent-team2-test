@@ -38,4 +38,18 @@ describe('Header', () => {
 
     expect(screen.getByRole('button')).toBeInTheDocument();
   });
+
+  it('「プロフィール」リンクが表示されること', () => {
+    render(<Header />);
+
+    const link = screen.getByRole('link', { name: 'プロフィール' });
+    expect(link).toBeInTheDocument();
+  });
+
+  it('「プロフィール」リンクが /profile を指すこと', () => {
+    render(<Header />);
+
+    const link = screen.getByRole('link', { name: 'プロフィール' });
+    expect(link).toHaveAttribute('href', '/profile');
+  });
 });
