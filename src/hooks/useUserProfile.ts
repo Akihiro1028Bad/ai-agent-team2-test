@@ -8,12 +8,25 @@ export function useUserProfile(id: string) {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     setLoading(true);
     setError(null);
+
     getUserProfile(id)
-      .then(setProfile)
-      .catch(setError)
-      .finally(() => setLoading(false));
+      .then((data) => {
+        if (!cancelled) setProfile(data);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   const updateProfile = async (data: Partial<UserProfile>) => {
