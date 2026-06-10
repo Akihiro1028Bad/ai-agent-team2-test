@@ -203,6 +203,72 @@ describe('ProfileEditForm', () => {
     });
   });
 
+  it('website の前後に空白があっても https:// で始まればエラーにならない', async () => {
+    render(
+      <ProfileEditForm
+        profile={{ ...mockProfile, website: '' }}
+        onSave={mockOnSave}
+        onCancel={mockOnCancel}
+      />
+    );
+
+    const websiteInput = screen.getByLabelText('Webサイト');
+    await userEvent.type(websiteInput, ' https://example.com ');
+
+    fireEvent.submit(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('URLは https:// で始めてください')).not.toBeInTheDocument();
+      expect(mockOnSave).toHaveBeenCalledWith(
+        expect.objectContaining({ website: 'https://example.com' })
+      );
+    });
+  });
+
+  it('website の末尾に空白があっても https:// で始まればエラーにならない', async () => {
+    render(
+      <ProfileEditForm
+        profile={{ ...mockProfile, website: '' }}
+        onSave={mockOnSave}
+        onCancel={mockOnCancel}
+      />
+    );
+
+    const websiteInput = screen.getByLabelText('Webサイト');
+    await userEvent.type(websiteInput, 'https://example.com ');
+
+    fireEvent.submit(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('URLは https:// で始めてください')).not.toBeInTheDocument();
+      expect(mockOnSave).toHaveBeenCalledWith(
+        expect.objectContaining({ website: 'https://example.com' })
+      );
+    });
+  });
+
+  it('空白のみの website は空として扱われ URL チェックをスキップする', async () => {
+    render(
+      <ProfileEditForm
+        profile={{ ...mockProfile, website: '' }}
+        onSave={mockOnSave}
+        onCancel={mockOnCancel}
+      />
+    );
+
+    const websiteInput = screen.getByLabelText('Webサイト');
+    await userEvent.type(websiteInput, '   ');
+
+    fireEvent.submit(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('URLは https:// で始めてください')).not.toBeInTheDocument();
+      expect(mockOnSave).toHaveBeenCalledWith(
+        expect.objectContaining({ website: undefined })
+      );
+    });
+  });
+
   it('保存中はボタンが無効化される', async () => {
     let resolveOnSave: () => void;
     mockOnSave.mockImplementation(
