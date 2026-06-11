@@ -2,18 +2,20 @@
   "schema_version": 1,
   "plan_depth": "full",
   "ui_impact": true,
-  "summary": "通知一覧画面（新規）に「すべて既読にする」ボタンを追加する。状態管理は useReducer ベースで実装し、楽観的更新（MARK_ALL_READ_OPTIMISTIC）と失敗時スナップショットロールバック（MARK_ALL_READ_ROLLBACK）を備える。エラー表示は既存のインラインエラーパターンを踏襲する。",
+  "summary": "通知一覧画面を新規作成し、useReducerベースの状態管理で楽観的更新とロールバックを含む「すべて既読にする」ボタンを実装する。状態変化はFETCH/MARK_ALL_READ系の6種アクションで管理し、失敗時はスナップショットで元の通知一覧を復元する。",
   "test_cases": [
-    "getNotifications() / markAllAsRead() の正常系・エラー系",
-    "useNotificationList: FETCH_START/SUCCESS/ERROR の各 Reducer Action",
-    "useNotificationList: MARK_ALL_READ_OPTIMISTIC で全通知が即座に isRead:true になること",
-    "useNotificationList: MARK_ALL_READ_ROLLBACK でスナップショットが復元され markAllReadError がセットされること",
-    "NotificationList: 未読 0件時にボタンが disabled になること",
-    "NotificationList: isMarkingAllRead:true 時にボタンが disabled かつ「処理中...」表示になること",
-    "NotificationList: markAllReadError 非 null 時にインラインエラーメッセージが表示されること",
-    "page.tsx: loading/error/正常の3状態が正しく描画されること"
+    "getNotifications()の正常系・異常系（fetch モック使用）",
+    "markAllAsRead()の正常系・異常系（fetch モック使用）",
+    "FETCH_START/SUCCESS/ERRORによる一覧取得状態遷移",
+    "MARK_ALL_READ_OPTIMISTICで即時全件既読になること",
+    "MARK_ALL_READ_ROLLBACKでスナップショットに戻ること",
+    "unreadCountが正しく計算されること",
+    "ボタンが未読0件時にdisabledになること",
+    "isMarkingAllRead=trueのとき「処理中...」表示でdisabledになること",
+    "markAllReadErrorがある場合インラインエラーバナーが表示されること",
+    "ページのローディング・エラー・正常表示の各状態"
   ],
-  "architecture": "src/types/notification.ts に Notification 型を追加。notificationClient に getNotifications/markAllAsRead を追加。useNotificationList フックを useReducer で実装し楽観的更新とロールバックを管理。NotificationList コンポーネントが Props 経由で状態を受け取り UI を制御。app/notifications/page.tsx でフックとコンポーネントを接続する。",
+  "architecture": "app/notifications/page.tsxがuseNotificationListフックとNotificationListコンポーネントを接続する薄いラッパー。フックはuseReducerで一覧取得・楽観的更新・ロールバックを管理し、コンポーネントはPropsのみでUIを描画するプレゼンテーション層として分離。",
   "subtasks": [
     {
       "id": 1,
@@ -29,7 +31,11 @@
     },
     {
       "id": 4,
-      "title": "NotificationList コンポーネント + ページ + テスト"
+      "title": "NotificationList コンポーネント新規作成 + テスト"
+    },
+    {
+      "id": 5,
+      "title": "通知一覧ページ新規作成 + テスト"
     }
   ]
 }

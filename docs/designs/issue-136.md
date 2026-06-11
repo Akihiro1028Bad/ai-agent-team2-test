@@ -90,7 +90,7 @@ export interface Notification {
 **レスポンス**:
 ```json
 [
-  { "id": "1", "title": "コメントが届きました", "body": "...", "isRead": false, "createdAt": "2026-06-11T09:00:00Z" },
+  { "id": "1", "title": "コメントが届きました", "body": "ユーザーAがコメントしました", "isRead": false, "createdAt": "2026-06-11T09:00:00Z" },
   { "id": "2", "title": "いいねされました", "isRead": true, "createdAt": "2026-06-10T15:00:00Z" }
 ]
 ```
@@ -123,7 +123,7 @@ app/api/notifications/route.ts            ← 新規（GET /api/notifications）
 app/api/notifications/read-all/route.ts   ← 新規（POST /api/notifications/read-all）
 ```
 
-モックデータは `app/api/notifications/data.ts` 等の共通モジュールで管理し、両 Route Handler から参照する。
+モックデータはインメモリ配列で管理し、`read-all` POST 時にメモリ上のデータを既読状態に更新する。
 
 ---
 
@@ -156,6 +156,8 @@ export async function markAllAsRead(): Promise<{ updatedCount: number }> {
   return res.json();
 }
 ```
+
+エラーメッセージには `res.status` コードのみ含め、レスポンスボディの機密情報は露出させない。
 
 ---
 
@@ -253,7 +255,7 @@ function notificationListReducer(
    ┌ 成功 → dispatch({ type: 'MARK_ALL_READ_SUCCESS' })
    │          isMarkingAllRead = false、UI は既読状態を維持
    └ 失敗 → dispatch({ type: 'MARK_ALL_READ_ROLLBACK', payload: { notifications: snapshot, error: メッセージ } })
-              スナップショットで通知を元の状態に戻す
+              スナップショットで通知を元の状態に復元
               markAllReadError にエラーメッセージをセット
               インラインエラーメッセージを表示
 ```
@@ -497,6 +499,7 @@ export default function NotificationsPage() {
 | エラーメッセージの機密情報 | ユーザー向けエラーメッセージは固定文言（`'すべて既読の処理に失敗しました'`）のみ表示。スタックトレース等は露出しない |
 | 二重送信防止 | `isMarkingAllRead` フラグで処理中はボタン `disabled` にし、二重 POST を防ぐ |
 | 認証 | モック Route Handler では認証チェックなし。実DB連携時に NextAuth.js との統合を実施（TODO コメントで明示） |
+| XSS 対策 | `Notification.title` / `body` 等の値はテキストコンテンツとして描画し、`dangerouslySetInnerHTML` は使用しない |
 
 ---
 
@@ -533,7 +536,7 @@ export default function NotificationsPage() {
 | 5 | MARK_ALL_READ_OPTIMISTIC | 処理中に `isMarkingAllRead: true` かつ全通知 `isRead: true` になること |
 | 6 | MARK_ALL_READ_SUCCESS | 成功後 `isMarkingAllRead: false`、通知は既読状態を維持すること |
 | 7 | MARK_ALL_READ_ROLLBACK | 失敗後 `notifications` がスナップショットに戻り、`markAllReadError` がセットされること |
-| 8 | Reducer 単体: 各 Action が正しく状態を変更すること | Reducer 関数を直接呼び出してテスト |
+| 8 | Reducer 単体テスト | 各 Action が正しく状態を変更することを Reducer 関数を直接呼び出して検証 |
 
 #### `NotificationList.test.tsx`
 
@@ -592,7 +595,12 @@ jest.mock('../../src/hooks/useNotificationList');
 - depends_on: [2]
 - description: `useReducer` ベースの `useNotificationList` フックを実装する。`FETCH_START/SUCCESS/ERROR` による一覧取得、`MARK_ALL_READ_OPTIMISTIC/SUCCESS/ROLLBACK` による楽観的更新とスナップショットロールバックを設計通りに実装する。Reducer 関数の単体テスト含む全パターンのユニットテストを新規作成する。
 
-### subtask-4: NotificationList コンポーネント + ページ + テスト
-- files: [`src/components/NotificationList.tsx`, `src/components/NotificationList.module.css`, `src/components/__tests__/NotificationList.test.tsx`, `app/notifications/page.tsx`, `app/notifications/__tests__/page.test.tsx`]
+### subtask-4: NotificationList コンポーネント新規作成 + テスト
+- files: [`src/components/NotificationList.tsx`, `src/components/NotificationList.module.css`, `src/components/__tests__/NotificationList.test.tsx`]
 - depends_on: [3]
-- description: `NotificationList` コンポーネントと CSS モジュールを新規作成する。ヘッダー右側に「すべて既読にする」ボタン（未読 0件 / 処理中は disabled）、エラーメッセージ表示（インライン）、通知アイテム一覧（未読ハイライト・空状態）を実装する。`app/notifications/page.tsx` で `useNotificationList` フックと接続する。コンポーネントおよびページのユニットテストを新規作成する。
+- description: `NotificationList` コンポーネントと CSS モジュールを新規作成する。ヘッダー右側に「すべて既読にする」ボタン（未読 0件 / 処理中は disabled）、インラインエラーメッセージ表示、通知アイテム一覧（未読ハイライト・空状態メッセージ）を実装する。対応するユニットテストを新規作成する。
+
+### subtask-5: 通知一覧ページ新規作成 + テスト
+- files: [`app/notifications/page.tsx`, `app/notifications/__tests__/page.test.tsx`]
+- depends_on: [4]
+- description: `app/notifications/page.tsx` を新規作成し、`useNotificationList` フックと `NotificationList` コンポーネントを接続する。ローディング・エラー・正常表示の各状態に対応するページテストを新規作成する。
