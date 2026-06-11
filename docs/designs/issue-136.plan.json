@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "plan_depth": "full",
+  "ui_impact": true,
+  "summary": "通知一覧画面（app/notifications/page.tsx）を新規作成し、「すべて既読にする」ボタンを実装する。未読0件時はdisabled、処理中はローディング表示、失敗時はインラインエラーメッセージを表示する。既存コードの変更はsrc/types/notification.tsへのNotification型追加とsrc/api/notificationClient.tsへの2関数追加のみで、他は全て新規ファイル。",
+  "test_cases": [
+    "getNotifications()が正常にfetchを呼び配列を返す / res.ok=falseでエラースロー",
+    "markAllAsRead()がPOSTを呼び{updatedCount}を返す / res.ok=falseでエラースロー",
+    "useNotificationList: マウント時にローディング→一覧取得→unreadCount計算",
+    "useNotificationList: handleMarkAllAsRead成功時に全notificationsのisReadがtrueになる",
+    "useNotificationList: handleMarkAllAsRead失敗時にmarkAllReadErrorがセットされ通知状態は変化しない",
+    "NotificationList: 未読あり→ボタンactive / 未読0件→ボタンdisabled",
+    "NotificationList: isMarkingAllRead=trueで「処理中...」表示＋disabled",
+    "NotificationList: markAllReadErrorがある場合エラーメッセージ表示",
+    "NotificationList: 通知0件時に空状態メッセージ表示",
+    "NotificationList: 未読アイテムにハイライトクラスが付与される"
+  ],
+  "architecture": "型定義(Notification型) → APIクライアント(getNotifications/markAllAsRead) → カスタムフック(useNotificationList) → UIコンポーネント(NotificationList) → ページ(app/notifications/page.tsx) の依存順で実装。モックRoute Handlerはapp/api/notifications配下に新規作成。エラー表示は既存のsaveErrorパターン（インラインdiv）を踏襲。",
+  "subtasks": [
+    {
+      "id": 1,
+      "title": "型定義追加 + モック Route Handler 新規作成"
+    },
+    {
+      "id": 2,
+      "title": "APIクライアント拡張 + テスト"
+    },
+    {
+      "id": 3,
+      "title": "カスタムフック新規作成 + テスト"
+    },
+    {
+      "id": 4,
+      "title": "通知一覧コンポーネント + ページ + テスト"
+    }
+  ]
+}
