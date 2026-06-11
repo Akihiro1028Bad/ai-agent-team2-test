@@ -29,3 +29,10 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   pushEnabled: true,
   frequency: 'immediate',
 };
+
+/**
+ * 未読通知件数
+ */
+export interface UnreadNotificationCount {
+  count: number;
+}
