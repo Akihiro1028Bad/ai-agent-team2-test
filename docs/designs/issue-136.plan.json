@@ -2,19 +2,22 @@
   "schema_version": 1,
   "plan_depth": "full",
   "ui_impact": true,
-  "summary": "通知一覧画面を新規作成し、useReducer ベースの状態管理と楽観的更新（失敗時スナップショットロールバック）を持つ「すべて既読にする」ボタンを実装する。エラー表示は既存インラインパターンを踏襲し、外部ライブラリは追加しない。",
+  "summary": "通知一覧画面（新規）を作成し、ヘッダー右側に「すべて既読にする」ボタンを追加する。状態管理は useReducer ベースで設計し、楽観的更新と失敗時スナップショットロールバックを実装する。エラー表示はインラインメッセージで行う（トーストライブラリ不使用）。",
   "test_cases": [
-    "getNotifications/markAllAsRead の正常系・エラー系（fetch モック）",
-    "useNotificationList: FETCH_START/SUCCESS/ERROR の状態遷移",
-    "useNotificationList: MARK_ALL_READ_OPTIMISTIC で全件即時既読になること",
-    "useNotificationList: MARK_ALL_READ_ROLLBACK でスナップショット復元と markAllReadError セット",
-    "useNotificationList: Reducer 関数の単体テスト（各 Action）",
-    "NotificationList: 未読あり/0件 でボタンの disabled 状態が正しいこと",
-    "NotificationList: 処理中に「処理中...」表示・disabled になること",
-    "NotificationList: markAllReadError 表示・空状態メッセージ表示",
-    "page.tsx: loading/error/正常の各状態表示"
+    "getNotifications() 正常系・異常系（fetch モック）",
+    "markAllAsRead() 正常系・異常系（fetch モック）",
+    "useNotificationList: FETCH_START/SUCCESS/ERROR の各状態遷移",
+    "useNotificationList: MARK_ALL_READ_OPTIMISTIC で全通知即時既読化・isMarkingAllRead=true",
+    "useNotificationList: MARK_ALL_READ_SUCCESS で isMarkingAllRead=false・既読状態維持",
+    "useNotificationList: MARK_ALL_READ_ROLLBACK でスナップショット復元・markAllReadError セット",
+    "useNotificationList: unreadCount の派生値計算",
+    "NotificationList: 未読あり時ボタン active、未読 0件時 disabled",
+    "NotificationList: isMarkingAllRead=true 時「処理中...」表示・ボタン disabled",
+    "NotificationList: markAllReadError あり時エラーメッセージ表示",
+    "NotificationList: 通知 0件時の空状態メッセージ表示",
+    "page: loading 時「読み込み中...」、error 時エラー表示、正常時 NotificationList レンダリング"
   ],
-  "architecture": "src/types に Notification 型を追加し、notificationClient に getNotifications/markAllAsRead を追加。useNotificationList フック（useReducer）が一覧取得・楽観的更新・ロールバックを管理し、NotificationList コンポーネントが UI を担当。app/notifications/page.tsx でフックとコンポーネントを接続する。",
+  "architecture": "src/types/notification.ts に Notification 型を追加、notificationClient.ts に getNotifications()/markAllAsRead() を追加、useReducer ベースの useNotificationList フックで状態管理（楽観的更新+ロールバック）、NotificationList コンポーネントで UI 表現、app/notifications/page.tsx でページ統合、モック用 Route Handler を app/api/notifications/ 以下に新規作成。",
   "subtasks": [
     {
       "id": 1,
