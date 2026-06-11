@@ -8,9 +8,9 @@
 - 「すべて既読にする」ボタンで `POST /notifications/read-all` を呼び出し、全未読を既読に変更
 - 未読 0 件時はボタンを `disabled` にする
 - 処理中はローディング表示で二重実行を防止
-- **楽観的更新 (Optimistic Update)**: ボタン押下と同時に UI を全件既読状態に変更し、失敗時に元の状態へロールバックする
-- 失敗時はインラインエラーメッセージを表示（既存の `saveError` パターンに倣う）
-- **状態管理は `useReducer` ベース** で実装する
+- **楽観的更新 (Optimistic Update)**: ボタン押下と同時に UI を全件既読状態に変更し、失敗時にスナップショットへロールバック
+- 失敗時はインラインエラーメッセージを表示（既存の `saveError` パターンに倣う。プロジェクトにトーストライブラリは未インストール）
+- **状態管理は `useReducer` ベース** で実装する（前回の差し戻し指摘に対応）
 
 ### 1.1 スコープ
 
@@ -21,7 +21,7 @@
 
 ### 1.2 エラー表示方針
 
-プロジェクトにトーストライブラリが存在しないため、既存の `NotificationSettingsForm` における `saveError` ステートパターン（インライン `<div class="errorMessage">` 表示）を踏襲する。
+プロジェクトにトーストライブラリが存在しないため、既存の `NotificationSettingsForm` における `saveError` ステートパターン（インライン `<div className={styles.errorMessage}>` 表示）を踏襲する。
 
 ---
 
@@ -35,6 +35,7 @@
 | `src/api/notificationClient.ts` | 通知設定の取得・更新のみ | ⚠️ `getNotifications()` / `markAllAsRead()` を追加 |
 | `src/hooks/useNotificationSettings.ts` | 通知設定専用 Hook（`useState` ベース） | ✅ 変更なし |
 | `src/components/NotificationSettingsForm.tsx` | 通知設定フォームのみ | ✅ 変更なし |
+| `src/components/Header.tsx` | 未読バッジなし | ✅ 変更なし（Issue #135 で対応） |
 
 ### 2.2 既存パターン
 
@@ -81,7 +82,7 @@ export interface Notification {
 
 ---
 
-## 4. API設計
+## 4. API 設計
 
 ### 4.1 GET `/api/notifications`
 
@@ -90,8 +91,19 @@ export interface Notification {
 **レスポンス**:
 ```json
 [
-  { "id": "1", "title": "コメントが届きました", "body": "ユーザーAがコメントしました", "isRead": false, "createdAt": "2026-06-11T09:00:00Z" },
-  { "id": "2", "title": "いいねされました", "isRead": true, "createdAt": "2026-06-10T15:00:00Z" }
+  {
+    "id": "1",
+    "title": "コメントが届きました",
+    "body": "ユーザーAがコメントしました",
+    "isRead": false,
+    "createdAt": "2026-06-11T09:00:00Z"
+  },
+  {
+    "id": "2",
+    "title": "いいねされました",
+    "isRead": true,
+    "createdAt": "2026-06-10T15:00:00Z"
+  }
 ]
 ```
 
@@ -157,7 +169,7 @@ export async function markAllAsRead(): Promise<{ updatedCount: number }> {
 }
 ```
 
-エラーメッセージには `res.status` コードのみ含め、レスポンスボディの機密情報は露出させない。
+エラーメッセージには `res.status` コードのみ含め、レスポンスボディの機密情報は UI に露出させない。
 
 ---
 
@@ -250,14 +262,16 @@ function notificationListReducer(
 1. ユーザーがボタン押下 → handleMarkAllAsRead() 実行
 2. スナップショット保存: const snapshot = state.notifications
 3. dispatch({ type: 'MARK_ALL_READ_OPTIMISTIC' })
-   → 即座に UI を全件既読表示（isRead: true）、ボタン disabled
+   → 即座に UI を全件既読表示（isRead: true）、isMarkingAllRead: true
 4. await markAllAsRead() (POST /notifications/read-all)
    ┌ 成功 → dispatch({ type: 'MARK_ALL_READ_SUCCESS' })
-   │          isMarkingAllRead = false、UI は既読状態を維持
-   └ 失敗 → dispatch({ type: 'MARK_ALL_READ_ROLLBACK', payload: { notifications: snapshot, error: メッセージ } })
-              スナップショットで通知を元の状態に復元
-              markAllReadError にエラーメッセージをセット
-              インラインエラーメッセージを表示
+   │          isMarkingAllRead: false、UI は既読状態を維持
+   └ 失敗 → dispatch({
+               type: 'MARK_ALL_READ_ROLLBACK',
+               payload: { notifications: snapshot, error: '...' }
+             })
+             スナップショットで通知を元の状態に復元
+             markAllReadError にエラーメッセージをセット → インライン表示
 ```
 
 ### 6.6 フック実装概要
@@ -326,7 +340,7 @@ interface NotificationListProps {
 }
 ```
 
-**UI構成**:
+**UI 構成**:
 
 ```
 ┌────────────────────────────────────────────┐
@@ -334,16 +348,16 @@ interface NotificationListProps {
 │  ──────────────────────────────────────── │
 │  ※ エラー時: [エラーメッセージ]             │
 │                                            │
-│  ┌────────────────────────────────────┐    │
-│  │ ● コメントが届きました (未読)       │    │
-│  │   ユーザーAがコメントしました        │    │
-│  │   2026-06-11 09:00                  │    │
-│  └────────────────────────────────────┘    │
+│  ┌────────────────────────────────────┐   │
+│  │ ● コメントが届きました (未読)       │   │
+│  │   ユーザーAがコメントしました        │   │
+│  │   2026-06-11 09:00                  │   │
+│  └────────────────────────────────────┘   │
 │                                            │
-│  ┌────────────────────────────────────┐    │
-│  │   いいねされました (既読)           │    │
-│  │   2026-06-10 15:00                  │    │
-│  └────────────────────────────────────┘    │
+│  ┌────────────────────────────────────┐   │
+│  │   いいねされました (既読)           │   │
+│  │   2026-06-10 15:00                  │   │
+│  └────────────────────────────────────┘   │
 └────────────────────────────────────────────┘
 ```
 
@@ -409,7 +423,7 @@ export default function NotificationsPage() {
   } = useNotificationList();
 
   if (loading) return <div>読み込み中...</div>;
-  if (error) return <div>エラーが発生しました: {error.message}</div>;
+  if (error) return <div>エラーが発生しました</div>;
 
   return (
     <NotificationList
@@ -423,6 +437,8 @@ export default function NotificationsPage() {
 }
 ```
 
+> **セキュリティ注意**: エラー表示に `error.message` を直接露出させず、固定文言を使用する。
+
 ---
 
 ## 9. 状態管理・状態遷移
@@ -433,7 +449,7 @@ export default function NotificationsPage() {
 [/notifications ページ表示]
   ↓
   FETCH_START（loading: true）
-    ├→ FETCH_ERROR → "エラーが発生しました: {message}"
+    ├→ FETCH_ERROR → "エラーが発生しました"
     └→ FETCH_SUCCESS → NotificationList 表示
                          ┌ 未読あり: ボタン active
                          └ 未読なし: ボタン disabled
@@ -495,10 +511,10 @@ export default function NotificationsPage() {
 
 | 項目 | 対応方針 |
 |------|---------|
-| API レスポンスのバリデーション | `getNotifications()` は配列を前提とし、型定義に沿って使用。不正なデータはエラーとして扱う |
-| エラーメッセージの機密情報 | ユーザー向けエラーメッセージは固定文言（`'すべて既読の処理に失敗しました'`）のみ表示。スタックトレース等は露出しない |
+| API レスポンスのバリデーション | `getNotifications()` は配列を前提とし、TypeScript 型定義に沿って使用する。不正なデータはエラーとして扱う |
+| エラーメッセージの機密情報 | ユーザー向けエラーメッセージは固定文言（`'すべて既読の処理に失敗しました'`）のみ表示。スタックトレース・ステータスコード等は UI に露出しない |
 | 二重送信防止 | `isMarkingAllRead` フラグで処理中はボタン `disabled` にし、二重 POST を防ぐ |
-| 認証 | モック Route Handler では認証チェックなし。実DB連携時に NextAuth.js との統合を実施（TODO コメントで明示） |
+| 認証 | モック Route Handler では認証チェックなし。実 DB 連携時に NextAuth.js との統合を実施（TODO コメントで明示） |
 | XSS 対策 | `Notification.title` / `body` 等の値はテキストコンテンツとして描画し、`dangerouslySetInnerHTML` は使用しない |
 
 ---
@@ -507,12 +523,12 @@ export default function NotificationsPage() {
 
 ### 12.1 ユニットテスト対象
 
-| テスト対象 | テストファイル | テストカバレッジ目標 |
-|-----------|---------------|-------------------|
+| テスト対象 | テストファイル | カバレッジ目標 |
+|-----------|---------------|----------------|
 | `notificationClient.ts`（追加関数） | `src/api/__tests__/notificationClient.test.ts` | 80%以上 |
-| `useNotificationList` | `src/hooks/__tests__/useNotificationList.test.ts` | 80%以上 |
+| `useNotificationList` フック | `src/hooks/__tests__/useNotificationList.test.ts` | 80%以上 |
 | `NotificationList` コンポーネント | `src/components/__tests__/NotificationList.test.tsx` | 80%以上 |
-| `app/notifications/page.tsx` | `app/notifications/__tests__/page.test.tsx` | 80%以上 |
+| 通知一覧ページ | `app/notifications/__tests__/page.test.tsx` | 80%以上 |
 
 ### 12.2 テストケース詳細
 
@@ -536,7 +552,7 @@ export default function NotificationsPage() {
 | 5 | MARK_ALL_READ_OPTIMISTIC | 処理中に `isMarkingAllRead: true` かつ全通知 `isRead: true` になること |
 | 6 | MARK_ALL_READ_SUCCESS | 成功後 `isMarkingAllRead: false`、通知は既読状態を維持すること |
 | 7 | MARK_ALL_READ_ROLLBACK | 失敗後 `notifications` がスナップショットに戻り、`markAllReadError` がセットされること |
-| 8 | Reducer 単体テスト | 各 Action が正しく状態を変更することを Reducer 関数を直接呼び出して検証 |
+| 8 | Reducer 単体テスト | 各 Action を Reducer 関数に直接渡して状態変化を検証すること |
 
 #### `NotificationList.test.tsx`
 
@@ -549,14 +565,14 @@ export default function NotificationsPage() {
 | 5 | 処理中表示 | `isMarkingAllRead: true` のとき「処理中...」が表示されボタンが `disabled` になること |
 | 6 | エラーメッセージ表示 | `markAllReadError` に値がある場合エラーメッセージが表示されること |
 | 7 | 通知 0件 | 空状態メッセージが表示されること |
-| 8 | 未読・既読の区別 | 未読アイテムにハイライトクラスが付与されること |
+| 8 | 未読・既読の区別 | 未読アイテムに未読用クラスが付与されること |
 
 #### `page.test.tsx`
 
 | # | テストケース | 確認内容 |
 |---|-------------|----------|
-| 1 | ローディング中 | `useNotificationList` が `loading: true` を返す場合にローディング表示されること |
-| 2 | エラー時 | `error` が非 null の場合エラー表示されること |
+| 1 | ローディング中 | `loading: true` のとき「読み込み中...」が表示されること |
+| 2 | エラー時 | `error` が非 null の場合エラーメッセージが表示されること |
 | 3 | 正常時 | `NotificationList` コンポーネントが描画されること |
 
 ### 12.3 Fake / モックパターン
@@ -588,17 +604,17 @@ jest.mock('../../src/hooks/useNotificationList');
 ### subtask-2: APIクライアント拡張 + テスト
 - files: [`src/api/notificationClient.ts`, `src/api/__tests__/notificationClient.test.ts`]
 - depends_on: [1]
-- description: `src/api/notificationClient.ts` に `getNotifications()`（GET /notifications）と `markAllAsRead()`（POST /notifications/read-all）を追加する。既存パターンに倣い fetch ラッパーとして実装。対応するユニットテスト（正常系・エラー系）を新規作成する。
+- description: `src/api/notificationClient.ts` に `getNotifications()`（GET /notifications）と `markAllAsRead()`（POST /notifications/read-all）を追加する。既存パターンに倣い fetch ラッパーとして実装し、対応するユニットテスト（正常系・エラー系）を新規作成する。
 
 ### subtask-3: useNotificationList フック新規作成 + テスト
 - files: [`src/hooks/useNotificationList.ts`, `src/hooks/__tests__/useNotificationList.test.ts`]
 - depends_on: [2]
-- description: `useReducer` ベースの `useNotificationList` フックを実装する。`FETCH_START/SUCCESS/ERROR` による一覧取得、`MARK_ALL_READ_OPTIMISTIC/SUCCESS/ROLLBACK` による楽観的更新とスナップショットロールバックを設計通りに実装する。Reducer 関数の単体テスト含む全パターンのユニットテストを新規作成する。
+- description: `useReducer` ベースの `useNotificationList` フックを実装する。`FETCH_START/SUCCESS/ERROR` による一覧取得、`MARK_ALL_READ_OPTIMISTIC/SUCCESS/ROLLBACK` による楽観的更新とスナップショットロールバックを設計通りに実装する。Reducer 関数の単体テスト含む全状態遷移のユニットテストを新規作成する。
 
 ### subtask-4: NotificationList コンポーネント新規作成 + テスト
 - files: [`src/components/NotificationList.tsx`, `src/components/NotificationList.module.css`, `src/components/__tests__/NotificationList.test.tsx`]
 - depends_on: [3]
-- description: `NotificationList` コンポーネントと CSS モジュールを新規作成する。ヘッダー右側に「すべて既読にする」ボタン（未読 0件 / 処理中は disabled）、インラインエラーメッセージ表示、通知アイテム一覧（未読ハイライト・空状態メッセージ）を実装する。対応するユニットテストを新規作成する。
+- description: `NotificationList` コンポーネントと CSS モジュールを新規作成する。ヘッダー右側に「すべて既読にする」ボタン（未読 0件 / 処理中は disabled）、インラインエラーメッセージ表示、通知アイテム一覧（未読ハイライト・空状態メッセージ）を実装する。対応するコンポーネントテストを新規作成する。
 
 ### subtask-5: 通知一覧ページ新規作成 + テスト
 - files: [`app/notifications/page.tsx`, `app/notifications/__tests__/page.test.tsx`]

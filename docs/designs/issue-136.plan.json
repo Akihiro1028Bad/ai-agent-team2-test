@@ -2,20 +2,19 @@
   "schema_version": 1,
   "plan_depth": "full",
   "ui_impact": true,
-  "summary": "通知一覧画面を新規作成し、useReducerベースの状態管理で楽観的更新とロールバックを含む「すべて既読にする」ボタンを実装する。状態変化はFETCH/MARK_ALL_READ系の6種アクションで管理し、失敗時はスナップショットで元の通知一覧を復元する。",
+  "summary": "通知一覧画面を新規作成し、useReducer ベースの状態管理と楽観的更新（失敗時スナップショットロールバック）を持つ「すべて既読にする」ボタンを実装する。エラー表示は既存インラインパターンを踏襲し、外部ライブラリは追加しない。",
   "test_cases": [
-    "getNotifications()の正常系・異常系（fetch モック使用）",
-    "markAllAsRead()の正常系・異常系（fetch モック使用）",
-    "FETCH_START/SUCCESS/ERRORによる一覧取得状態遷移",
-    "MARK_ALL_READ_OPTIMISTICで即時全件既読になること",
-    "MARK_ALL_READ_ROLLBACKでスナップショットに戻ること",
-    "unreadCountが正しく計算されること",
-    "ボタンが未読0件時にdisabledになること",
-    "isMarkingAllRead=trueのとき「処理中...」表示でdisabledになること",
-    "markAllReadErrorがある場合インラインエラーバナーが表示されること",
-    "ページのローディング・エラー・正常表示の各状態"
+    "getNotifications/markAllAsRead の正常系・エラー系（fetch モック）",
+    "useNotificationList: FETCH_START/SUCCESS/ERROR の状態遷移",
+    "useNotificationList: MARK_ALL_READ_OPTIMISTIC で全件即時既読になること",
+    "useNotificationList: MARK_ALL_READ_ROLLBACK でスナップショット復元と markAllReadError セット",
+    "useNotificationList: Reducer 関数の単体テスト（各 Action）",
+    "NotificationList: 未読あり/0件 でボタンの disabled 状態が正しいこと",
+    "NotificationList: 処理中に「処理中...」表示・disabled になること",
+    "NotificationList: markAllReadError 表示・空状態メッセージ表示",
+    "page.tsx: loading/error/正常の各状態表示"
   ],
-  "architecture": "app/notifications/page.tsxがuseNotificationListフックとNotificationListコンポーネントを接続する薄いラッパー。フックはuseReducerで一覧取得・楽観的更新・ロールバックを管理し、コンポーネントはPropsのみでUIを描画するプレゼンテーション層として分離。",
+  "architecture": "src/types に Notification 型を追加し、notificationClient に getNotifications/markAllAsRead を追加。useNotificationList フック（useReducer）が一覧取得・楽観的更新・ロールバックを管理し、NotificationList コンポーネントが UI を担当。app/notifications/page.tsx でフックとコンポーネントを接続する。",
   "subtasks": [
     {
       "id": 1,
