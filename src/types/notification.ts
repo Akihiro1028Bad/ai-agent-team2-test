@@ -29,3 +29,14 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   pushEnabled: true,
   frequency: 'immediate',
 };
+
+/**
+ * 通知アイテム
+ */
+export interface Notification {
+  id: string;
+  title: string;
+  body: string;
+  read: boolean;
+  createdAt: string; // UTC ISO 8601形式
+}
