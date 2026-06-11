@@ -2,13 +2,15 @@
 
 ## 1. 概要
 
-通知一覧画面を新規作成し、ヘッダー右側に「すべて既読にする」ボタンを配置する。
+通知一覧画面（新規）を作成し、ヘッダー右側に「すべて既読にする」ボタンを配置する。
 
 - `GET /notifications` で通知一覧を取得・表示
 - 「すべて既読にする」ボタンで `POST /notifications/read-all` を呼び出し、全未読を既読に変更
 - 未読 0 件時はボタンを `disabled` にする
 - 処理中はローディング表示で二重実行を防止
+- **楽観的更新 (Optimistic Update)**: ボタン押下と同時に UI を全件既読状態に変更し、失敗時に元の状態へロールバックする
 - 失敗時はインラインエラーメッセージを表示（既存の `saveError` パターンに倣う）
+- **状態管理は `useReducer` ベース** で実装する
 
 ### 1.1 スコープ
 
@@ -31,7 +33,7 @@
 |---------|------|----------|
 | `src/types/notification.ts` | `NotificationSettings` のみ定義 | ⚠️ `Notification` 型を追加 |
 | `src/api/notificationClient.ts` | 通知設定の取得・更新のみ | ⚠️ `getNotifications()` / `markAllAsRead()` を追加 |
-| `src/hooks/useNotificationSettings.ts` | 通知設定専用 Hook | ✅ 変更なし |
+| `src/hooks/useNotificationSettings.ts` | 通知設定専用 Hook（`useState` ベース） | ✅ 変更なし |
 | `src/components/NotificationSettingsForm.tsx` | 通知設定フォームのみ | ✅ 変更なし |
 
 ### 2.2 既存パターン
@@ -46,18 +48,6 @@ export async function getNotificationSettings(): Promise<NotificationSettings> {
 }
 ```
 
-**Hookパターン** (`src/hooks/useNotificationSettings.ts`):
-
-```typescript
-export function useNotificationSettings() {
-  const [data, setData] = useState<T>(defaultValue);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  // fetch on mount + update function
-  return { data, loading, error, updateFn };
-}
-```
-
 **エラー表示パターン** (`src/components/NotificationSettingsForm.tsx`):
 
 ```tsx
@@ -65,7 +55,7 @@ const [isSaving, setIsSaving] = useState(false);
 const [saveError, setSaveError] = useState<string | null>(null);
 
 {saveError && <div className={styles.errorMessage}>{saveError}</div>}
-<button disabled={isSaving}>{isSaving ? '処理中...' : '実行'}</button>
+<button disabled={isSaving}>{isSaving ? '保存中...' : '保存'}</button>
 ```
 
 ---
@@ -133,36 +123,7 @@ app/api/notifications/route.ts            ← 新規（GET /api/notifications）
 app/api/notifications/read-all/route.ts   ← 新規（POST /api/notifications/read-all）
 ```
 
-```typescript
-// app/api/notifications/route.ts
-import { NextResponse } from 'next/server';
-import { Notification } from '../../../../src/types/notification';
-
-// モックデータ（インメモリ）
-let mockNotifications: Notification[] = [
-  { id: '1', title: 'コメントが届きました', body: 'ユーザーAがコメントしました', isRead: false, createdAt: '2026-06-11T09:00:00Z' },
-  { id: '2', title: 'いいねされました', isRead: true, createdAt: '2026-06-10T15:00:00Z' },
-];
-
-export async function GET() {
-  return NextResponse.json(mockNotifications);
-}
-```
-
-```typescript
-// app/api/notifications/read-all/route.ts
-import { NextResponse } from 'next/server';
-
-export async function POST() {
-  // モックデータ参照を更新（実際のDB処理は後続Issueで対応）
-  // TODO: 実DBとの連携
-  const updatedCount = mockNotifications.filter((n) => !n.isRead).length;
-  mockNotifications = mockNotifications.map((n) => ({ ...n, isRead: true }));
-  return NextResponse.json({ updatedCount });
-}
-```
-
-> **注意**: `mockNotifications` はモジュール間で共有するため、`route.ts` 同士の参照方法は実装時にファイル分割か共通モジュール化で対応する。
+モックデータは `app/api/notifications/data.ts` 等の共通モジュールで管理し、両 Route Handler から参照する。
 
 ---
 
@@ -198,36 +159,141 @@ export async function markAllAsRead(): Promise<{ updatedCount: number }> {
 
 ---
 
-## 6. カスタムフック設計
+## 6. カスタムフック設計（`useReducer` ベース）
 
 ### 6.1 新規ファイル: `src/hooks/useNotificationList.ts`
 
-**責務**: 通知一覧の取得、全既読処理、ローディング・エラー状態の管理
+**責務**: 通知一覧の取得、全既読処理（楽観的更新＋ロールバック）、ローディング・エラー状態の管理
+
+### 6.2 State 定義
 
 ```typescript
-export function useNotificationList() {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
-  const [markAllReadError, setMarkAllReadError] = useState<string | null>(null);
+type NotificationListState = {
+  notifications: Notification[];
+  loading: boolean;
+  error: Error | null;
+  isMarkingAllRead: boolean;
+  markAllReadError: string | null;
+};
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
+const initialState: NotificationListState = {
+  notifications: [],
+  loading: true,
+  error: null,
+  isMarkingAllRead: false,
+  markAllReadError: null,
+};
+```
 
-  useEffect(() => {
-    // getNotifications() で一覧を取得
-  }, []);
+### 6.3 Action 定義
 
-  const handleMarkAllAsRead = async () => {
-    // markAllAsRead() を呼び出し、成功時は全通知の isRead を true に更新
-    // 失敗時は markAllReadError をセット、通知状態は変更しない
-  };
+```typescript
+type NotificationListAction =
+  | { type: 'FETCH_START' }
+  | { type: 'FETCH_SUCCESS'; payload: Notification[] }
+  | { type: 'FETCH_ERROR'; payload: Error }
+  | { type: 'MARK_ALL_READ_OPTIMISTIC' }
+  | { type: 'MARK_ALL_READ_SUCCESS' }
+  | { type: 'MARK_ALL_READ_ROLLBACK'; payload: { notifications: Notification[]; error: string } };
+```
 
-  return { notifications, loading, error, unreadCount, isMarkingAllRead, markAllReadError, handleMarkAllAsRead };
+### 6.4 Reducer ロジック
+
+| Action | 状態変化 |
+|---|---|
+| `FETCH_START` | `loading = true`, `error = null` |
+| `FETCH_SUCCESS` | `notifications = payload`, `loading = false` |
+| `FETCH_ERROR` | `error = payload`, `loading = false` |
+| `MARK_ALL_READ_OPTIMISTIC` | `notifications` 全件の `isRead` を `true` に変更、`isMarkingAllRead = true`, `markAllReadError = null` |
+| `MARK_ALL_READ_SUCCESS` | `isMarkingAllRead = false` |
+| `MARK_ALL_READ_ROLLBACK` | `notifications = payload.notifications`（スナップショット復元）、`isMarkingAllRead = false`, `markAllReadError = payload.error` |
+
+```typescript
+function notificationListReducer(
+  state: NotificationListState,
+  action: NotificationListAction
+): NotificationListState {
+  switch (action.type) {
+    case 'FETCH_START':
+      return { ...state, loading: true, error: null };
+    case 'FETCH_SUCCESS':
+      return { ...state, loading: false, notifications: action.payload };
+    case 'FETCH_ERROR':
+      return { ...state, loading: false, error: action.payload };
+    case 'MARK_ALL_READ_OPTIMISTIC':
+      return {
+        ...state,
+        isMarkingAllRead: true,
+        markAllReadError: null,
+        notifications: state.notifications.map((n) => ({ ...n, isRead: true })),
+      };
+    case 'MARK_ALL_READ_SUCCESS':
+      return { ...state, isMarkingAllRead: false };
+    case 'MARK_ALL_READ_ROLLBACK':
+      return {
+        ...state,
+        isMarkingAllRead: false,
+        notifications: action.payload.notifications,
+        markAllReadError: action.payload.error,
+      };
+    default:
+      return state;
+  }
 }
 ```
 
-**返却値**:
+### 6.5 楽観的更新フロー
+
+```
+1. ユーザーがボタン押下 → handleMarkAllAsRead() 実行
+2. スナップショット保存: const snapshot = state.notifications
+3. dispatch({ type: 'MARK_ALL_READ_OPTIMISTIC' })
+   → 即座に UI を全件既読表示（isRead: true）、ボタン disabled
+4. await markAllAsRead() (POST /notifications/read-all)
+   ┌ 成功 → dispatch({ type: 'MARK_ALL_READ_SUCCESS' })
+   │          isMarkingAllRead = false、UI は既読状態を維持
+   └ 失敗 → dispatch({ type: 'MARK_ALL_READ_ROLLBACK', payload: { notifications: snapshot, error: メッセージ } })
+              スナップショットで通知を元の状態に戻す
+              markAllReadError にエラーメッセージをセット
+              インラインエラーメッセージを表示
+```
+
+### 6.6 フック実装概要
+
+```typescript
+export function useNotificationList() {
+  const [state, dispatch] = useReducer(notificationListReducer, initialState);
+
+  // 一覧取得
+  useEffect(() => {
+    dispatch({ type: 'FETCH_START' });
+    getNotifications()
+      .then((data) => dispatch({ type: 'FETCH_SUCCESS', payload: data }))
+      .catch((err) => dispatch({ type: 'FETCH_ERROR', payload: err }));
+  }, []);
+
+  // 全既読処理（楽観的更新 + ロールバック）
+  const handleMarkAllAsRead = async () => {
+    const snapshot = state.notifications; // スナップショット保存
+    dispatch({ type: 'MARK_ALL_READ_OPTIMISTIC' });
+    try {
+      await markAllAsRead();
+      dispatch({ type: 'MARK_ALL_READ_SUCCESS' });
+    } catch {
+      dispatch({
+        type: 'MARK_ALL_READ_ROLLBACK',
+        payload: { notifications: snapshot, error: 'すべて既読の処理に失敗しました' },
+      });
+    }
+  };
+
+  const unreadCount = state.notifications.filter((n) => !n.isRead).length;
+
+  return { ...state, unreadCount, handleMarkAllAsRead };
+}
+```
+
+### 6.7 フック公開インターフェース
 
 | プロパティ | 型 | 説明 |
 |-----------|-----|------|
@@ -281,11 +347,11 @@ interface NotificationListProps {
 
 **ボタン状態**:
 
-| 条件 | ボタン表示 |
-|------|-----------|
-| 未読 1件以上 / 処理中でない | `すべて既読にする`（active） |
-| 処理中 (`isMarkingAllRead: true`) | `処理中...`（disabled） |
-| 未読 0件 | `すべて既読にする`（disabled） |
+| 条件 | ボタン表示 | disabled |
+|------|-----------|----------|
+| 未読 1件以上 / 処理中でない | `すべて既読にする` | `false` |
+| 処理中 (`isMarkingAllRead: true`) | `処理中...` | `true` |
+| 未読 0件 | `すべて既読にする` | `true` |
 
 ```tsx
 <button
@@ -330,8 +396,15 @@ import { useNotificationList } from '../../src/hooks/useNotificationList';
 import { NotificationList } from '../../src/components/NotificationList';
 
 export default function NotificationsPage() {
-  const { notifications, loading, error, unreadCount, isMarkingAllRead, markAllReadError, handleMarkAllAsRead } =
-    useNotificationList();
+  const {
+    notifications,
+    loading,
+    error,
+    unreadCount,
+    isMarkingAllRead,
+    markAllReadError,
+    handleMarkAllAsRead,
+  } = useNotificationList();
 
   if (loading) return <div>読み込み中...</div>;
   if (error) return <div>エラーが発生しました: {error.message}</div>;
@@ -350,34 +423,39 @@ export default function NotificationsPage() {
 
 ---
 
-## 9. 状態管理
+## 9. 状態管理・状態遷移
 
 ### 9.1 状態遷移図
 
 ```
 [/notifications ページ表示]
   ↓
-  Loading 中（loading: true）
-    → エラー → "エラーが発生しました: {message}"
-    → 成功   → NotificationList 表示
-                 ┌ 未読あり: ボタン active
-                 └ 未読なし: ボタン disabled
-                      ↓（ボタンクリック）
-                   処理中（isMarkingAllRead: true）
-                    → 成功: 全通知 isRead = true、ボタン disabled
-                    → 失敗: markAllReadError 表示、通知状態変更なし
+  FETCH_START（loading: true）
+    ├→ FETCH_ERROR → "エラーが発生しました: {message}"
+    └→ FETCH_SUCCESS → NotificationList 表示
+                         ┌ 未読あり: ボタン active
+                         └ 未読なし: ボタン disabled
+                              ↓（ボタンクリック）
+                           MARK_ALL_READ_OPTIMISTIC
+                           （UI: 全件即時既読表示、isMarkingAllRead: true）
+                            ├→ MARK_ALL_READ_SUCCESS
+                            │    isMarkingAllRead: false
+                            │    UI: 全件既読状態を維持
+                            └→ MARK_ALL_READ_ROLLBACK
+                                 notifications: スナップショット復元
+                                 markAllReadError: エラーメッセージ表示
 ```
 
 ### 9.2 状態一覧
 
-| 状態 | 管理場所 | 説明 |
-|------|----------|------|
-| `notifications` | `useNotificationList` | 通知一覧データ |
-| `loading` | `useNotificationList` | 一覧取得中フラグ |
-| `error` | `useNotificationList` | 一覧取得エラー |
-| `unreadCount` | `useNotificationList`（派生値） | 未読件数 |
-| `isMarkingAllRead` | `useNotificationList` | 全既読処理中フラグ |
-| `markAllReadError` | `useNotificationList` | 全既読エラーメッセージ |
+| 状態 | 管理場所 | 型 | 説明 |
+|------|----------|-----|------|
+| `notifications` | `useNotificationList` (Reducer) | `Notification[]` | 通知一覧データ |
+| `loading` | `useNotificationList` (Reducer) | `boolean` | 一覧取得中フラグ |
+| `error` | `useNotificationList` (Reducer) | `Error \| null` | 一覧取得エラー |
+| `unreadCount` | `useNotificationList` (派生値) | `number` | 未読件数 |
+| `isMarkingAllRead` | `useNotificationList` (Reducer) | `boolean` | 全既読処理中フラグ |
+| `markAllReadError` | `useNotificationList` (Reducer) | `string \| null` | 全既読エラーメッセージ |
 
 ---
 
@@ -389,7 +467,7 @@ export default function NotificationsPage() {
 |-------------|------|------|
 | `app/api/notifications/route.ts` | API Route | GET /api/notifications（モック） |
 | `app/api/notifications/read-all/route.ts` | API Route | POST /api/notifications/read-all（モック） |
-| `src/hooks/useNotificationList.ts` | Hook | 通知一覧の取得・全既読処理 |
+| `src/hooks/useNotificationList.ts` | Hook | 通知一覧の取得・全既読処理（useReducer） |
 | `src/components/NotificationList.tsx` | コンポーネント | 通知一覧UI |
 | `src/components/NotificationList.module.css` | スタイル | 通知一覧のスタイル |
 | `app/notifications/page.tsx` | ページ | 通知一覧ページ |
@@ -415,8 +493,8 @@ export default function NotificationsPage() {
 
 | 項目 | 対応方針 |
 |------|---------|
-| API レスポンスのバリデーション | `getNotifications()` は配列であることを前提とし、型アサーション後に使用。不正なデータはエラーとして扱う |
-| エラーメッセージの機密情報 | ユーザー向けエラーメッセージは固定文言（`'すべて既読の処理に失敗しました'`）。スタックトレース等は表示しない |
+| API レスポンスのバリデーション | `getNotifications()` は配列を前提とし、型定義に沿って使用。不正なデータはエラーとして扱う |
+| エラーメッセージの機密情報 | ユーザー向けエラーメッセージは固定文言（`'すべて既読の処理に失敗しました'`）のみ表示。スタックトレース等は露出しない |
 | 二重送信防止 | `isMarkingAllRead` フラグで処理中はボタン `disabled` にし、二重 POST を防ぐ |
 | 認証 | モック Route Handler では認証チェックなし。実DB連携時に NextAuth.js との統合を実施（TODO コメントで明示） |
 
@@ -431,6 +509,7 @@ export default function NotificationsPage() {
 | `notificationClient.ts`（追加関数） | `src/api/__tests__/notificationClient.test.ts` | 80%以上 |
 | `useNotificationList` | `src/hooks/__tests__/useNotificationList.test.ts` | 80%以上 |
 | `NotificationList` コンポーネント | `src/components/__tests__/NotificationList.test.tsx` | 80%以上 |
+| `app/notifications/page.tsx` | `app/notifications/__tests__/page.test.tsx` | 80%以上 |
 
 ### 12.2 テストケース詳細
 
@@ -443,18 +522,18 @@ export default function NotificationsPage() {
 | 3 | `markAllAsRead()` 正常系 | POST が呼ばれ、`{ updatedCount }` が返ること |
 | 4 | `markAllAsRead()` 異常系 | `res.ok` が false の場合エラーをスローすること |
 
-#### `useNotificationList.test.ts`
+#### `useNotificationList.test.ts`（useReducer の全 Action をカバー）
 
 | # | テストケース | 確認内容 |
 |---|-------------|----------|
 | 1 | 初期ローディング | マウント時 `loading: true` であること |
-| 2 | 一覧取得成功 | `notifications` に取得データがセットされること |
-| 3 | 一覧取得エラー | `error` にエラーがセットされること |
+| 2 | FETCH_SUCCESS | `notifications` にデータがセットされ `loading: false` になること |
+| 3 | FETCH_ERROR | `error` にエラーがセットされること |
 | 4 | `unreadCount` 計算 | `isRead: false` の件数のみカウントされること |
-| 5 | `handleMarkAllAsRead` 成功 | 全通知の `isRead` が `true` になること |
-| 6 | `handleMarkAllAsRead` 失敗 | `markAllReadError` がセットされ、通知データが変更されないこと |
-| 7 | 処理中フラグ | `handleMarkAllAsRead` 実行中は `isMarkingAllRead: true` であること |
-| 8 | 二重実行防止 | 処理中に再呼び出しが行われないこと（フック側はフラグ管理のみ、UI側でテスト） |
+| 5 | MARK_ALL_READ_OPTIMISTIC | 処理中に `isMarkingAllRead: true` かつ全通知 `isRead: true` になること |
+| 6 | MARK_ALL_READ_SUCCESS | 成功後 `isMarkingAllRead: false`、通知は既読状態を維持すること |
+| 7 | MARK_ALL_READ_ROLLBACK | 失敗後 `notifications` がスナップショットに戻り、`markAllReadError` がセットされること |
+| 8 | Reducer 単体: 各 Action が正しく状態を変更すること | Reducer 関数を直接呼び出してテスト |
 
 #### `NotificationList.test.tsx`
 
@@ -465,14 +544,22 @@ export default function NotificationsPage() {
 | 3 | 未読 0件 | ボタンが `disabled` であること |
 | 4 | ボタンクリック | `onMarkAllAsRead` が呼ばれること |
 | 5 | 処理中表示 | `isMarkingAllRead: true` のとき「処理中...」が表示されボタンが `disabled` になること |
-| 6 | エラーメッセージ | `markAllReadError` に値がある場合エラーメッセージが表示されること |
-| 7 | 通知 0件 | 「通知はありません」等の空状態メッセージが表示されること |
+| 6 | エラーメッセージ表示 | `markAllReadError` に値がある場合エラーメッセージが表示されること |
+| 7 | 通知 0件 | 空状態メッセージが表示されること |
 | 8 | 未読・既読の区別 | 未読アイテムにハイライトクラスが付与されること |
 
-### 12.3 Fakeパターン
+#### `page.test.tsx`
+
+| # | テストケース | 確認内容 |
+|---|-------------|----------|
+| 1 | ローディング中 | `useNotificationList` が `loading: true` を返す場合にローディング表示されること |
+| 2 | エラー時 | `error` が非 null の場合エラー表示されること |
+| 3 | 正常時 | `NotificationList` コンポーネントが描画されること |
+
+### 12.3 Fake / モックパターン
 
 ```typescript
-// fetch のモック例（jest.setup.ts のパターンに倣う）
+// fetch のモック（jest.fn() パターン）
 global.fetch = jest.fn();
 
 beforeEach(() => {
@@ -481,6 +568,9 @@ beforeEach(() => {
     json: async () => mockNotifications,
   });
 });
+
+// useNotificationList のモック（ページテスト用）
+jest.mock('../../src/hooks/useNotificationList');
 ```
 
 ---
@@ -490,19 +580,19 @@ beforeEach(() => {
 ### subtask-1: 型定義追加 + モック Route Handler 新規作成
 - files: [`src/types/notification.ts`, `app/api/notifications/route.ts`, `app/api/notifications/read-all/route.ts`]
 - depends_on: []
-- description: `src/types/notification.ts` に `Notification` インターフェースを追加。`GET /api/notifications` と `POST /api/notifications/read-all` のモック Route Handler を新規作成（インメモリデータで動作）。
+- description: `src/types/notification.ts` に `Notification` インターフェース（`id`, `title`, `body?`, `isRead`, `createdAt`）を追加する。`GET /api/notifications` と `POST /api/notifications/read-all` のモック Route Handler を新規作成する（インメモリデータで動作）。
 
 ### subtask-2: APIクライアント拡張 + テスト
 - files: [`src/api/notificationClient.ts`, `src/api/__tests__/notificationClient.test.ts`]
 - depends_on: [1]
-- description: `src/api/notificationClient.ts` に `getNotifications()` と `markAllAsRead()` 関数を追加。既存パターンに倣い fetch ラッパーとして実装。対応するユニットテストを新規作成。
+- description: `src/api/notificationClient.ts` に `getNotifications()`（GET /notifications）と `markAllAsRead()`（POST /notifications/read-all）を追加する。既存パターンに倣い fetch ラッパーとして実装。対応するユニットテスト（正常系・エラー系）を新規作成する。
 
-### subtask-3: カスタムフック新規作成 + テスト
+### subtask-3: useNotificationList フック新規作成 + テスト
 - files: [`src/hooks/useNotificationList.ts`, `src/hooks/__tests__/useNotificationList.test.ts`]
 - depends_on: [2]
-- description: `useNotificationList` フックを新規作成。通知一覧の取得（マウント時）、未読件数の派生計算、全既読処理（ローディング・エラー・楽観的更新なし）を実装。対応するユニットテストを新規作成。
+- description: `useReducer` ベースの `useNotificationList` フックを実装する。`FETCH_START/SUCCESS/ERROR` による一覧取得、`MARK_ALL_READ_OPTIMISTIC/SUCCESS/ROLLBACK` による楽観的更新とスナップショットロールバックを設計通りに実装する。Reducer 関数の単体テスト含む全パターンのユニットテストを新規作成する。
 
-### subtask-4: 通知一覧コンポーネント + ページ + テスト
-- files: [`src/components/NotificationList.tsx`, `src/components/NotificationList.module.css`, `app/notifications/page.tsx`, `src/components/__tests__/NotificationList.test.tsx`]
+### subtask-4: NotificationList コンポーネント + ページ + テスト
+- files: [`src/components/NotificationList.tsx`, `src/components/NotificationList.module.css`, `src/components/__tests__/NotificationList.test.tsx`, `app/notifications/page.tsx`, `app/notifications/__tests__/page.test.tsx`]
 - depends_on: [3]
-- description: `NotificationList` コンポーネントと CSS モジュールを新規作成。ヘッダー右側に「すべて既読にする」ボタン（未読 0件 / 処理中は disabled）、エラーメッセージ表示、通知アイテム一覧（未読ハイライト・空状態）を実装。`app/notifications/page.tsx` でフックとコンポーネントを接続。コンポーネントのユニットテストを新規作成。
+- description: `NotificationList` コンポーネントと CSS モジュールを新規作成する。ヘッダー右側に「すべて既読にする」ボタン（未読 0件 / 処理中は disabled）、エラーメッセージ表示（インライン）、通知アイテム一覧（未読ハイライト・空状態）を実装する。`app/notifications/page.tsx` で `useNotificationList` フックと接続する。コンポーネントおよびページのユニットテストを新規作成する。
