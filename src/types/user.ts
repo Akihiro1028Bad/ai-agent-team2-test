@@ -4,6 +4,7 @@ export interface User {
   email: string;
   avatarUrl?: string;
   createdAt: Date | string;
+  lastLoginAt?: string | null;
 }
 
 export interface UserProfile extends User {

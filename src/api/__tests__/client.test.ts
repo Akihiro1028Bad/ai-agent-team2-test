@@ -1,4 +1,4 @@
-import { getUser, getUserProfile, updateUser, updateUserProfile } from '../client';
+import { getUser, getUsers, getUserProfile, updateUser, updateUserProfile } from '../client';
 
 // global.fetch をモック化
 const mockFetch = jest.fn();
@@ -9,6 +9,29 @@ beforeEach(() => {
   mockFetch.mockResolvedValue({
     ok: true,
     json: async () => ({}),
+  });
+});
+
+describe('getUsers', () => {
+  it('正しいエンドポイント(/api/users)にfetchが呼ばれる', async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: async () => [] });
+    await getUsers();
+    expect(mockFetch).toHaveBeenCalledWith('http://localhost:3000/api/users');
+  });
+
+  it('正常なレスポンスがUser[]として返される', async () => {
+    const mockUsers = [
+      { id: '1', name: 'Alice', email: 'alice@example.com', createdAt: '2026-01-01', lastLoginAt: '2026-06-12T10:00:00.000Z' },
+      { id: '2', name: 'Bob', email: 'bob@example.com', createdAt: '2026-01-02', lastLoginAt: null },
+    ];
+    mockFetch.mockResolvedValue({ ok: true, json: async () => mockUsers });
+    const result = await getUsers();
+    expect(result).toEqual(mockUsers);
+  });
+
+  it('ok: falseのときErrorがthrowされる', async () => {
+    mockFetch.mockResolvedValue({ ok: false, status: 500 });
+    await expect(getUsers()).rejects.toThrow('Failed to fetch users: 500');
   });
 });
 

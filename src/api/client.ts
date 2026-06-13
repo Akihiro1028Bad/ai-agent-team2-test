@@ -8,6 +8,12 @@ function validateUserId(id: string): void {
   }
 }
 
+export async function getUsers(): Promise<User[]> {
+  const res = await fetch(`${API_BASE}/users`);
+  if (!res.ok) throw new Error(`Failed to fetch users: ${res.status}`);
+  return res.json();
+}
+
 export async function getUser(id: string): Promise<User> {
   validateUserId(id);
   const res = await fetch(`${API_BASE}/users/${id}`);
