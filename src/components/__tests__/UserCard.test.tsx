@@ -54,4 +54,26 @@ describe('UserCard', () => {
       fireEvent.click(screen.getByText('テストユーザー'));
     }).not.toThrow();
   });
+
+  it('lastLoginAt が ISO 8601 文字列の場合に YYYY/MM/DD 形式で表示される', () => {
+    const userWithLogin: User = { ...mockUser, lastLoginAt: '2026-06-12T10:30:00.000Z' };
+    render(<UserCard user={userWithLogin} />);
+
+    expect(screen.getByText(/最終ログイン:/)).toBeInTheDocument();
+    expect(screen.getByText(/2026\/06\/12/)).toBeInTheDocument();
+  });
+
+  it('lastLoginAt が null の場合に「ログイン履歴なし」が表示される', () => {
+    const userWithNullLogin: User = { ...mockUser, lastLoginAt: null };
+    render(<UserCard user={userWithNullLogin} />);
+
+    expect(screen.getByText(/ログイン履歴なし/)).toBeInTheDocument();
+  });
+
+  it('lastLoginAt が undefined の場合に「ログイン履歴なし」が表示される', () => {
+    const userWithUndefinedLogin: User = { ...mockUser, lastLoginAt: undefined };
+    render(<UserCard user={userWithUndefinedLogin} />);
+
+    expect(screen.getByText(/ログイン履歴なし/)).toBeInTheDocument();
+  });
 });
