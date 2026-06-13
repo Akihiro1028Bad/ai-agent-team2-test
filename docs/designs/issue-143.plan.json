@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "plan_depth": "full",
+  "ui_impact": true,
+  "summary": "ユーザー一覧画面（app/users/page.tsx）を新規作成し、各ユーザーカードに最終ログイン日をYYYY/MM/DD形式で表示する。バックエンドはメモリ内モックのRoute Handler（GET /api/users）として実装し、未ログインユーザーは「ログイン履歴なし」と表示する。",
+  "test_cases": [
+    "getUsers(): 正しいエンドポイントにfetchが呼ばれる",
+    "getUsers(): レスポンスがok:falseのときErrorがスローされる",
+    "useUsers: 成功時にusers配列が返りloadingがfalseになる",
+    "useUsers: 失敗時にerrorがセットされloadingがfalseになる",
+    "UserCard: lastLoginAtがISO文字列のときYYYY/MM/DD形式で表示される",
+    "UserCard: lastLoginAt=nullのとき「ログイン履歴なし」が表示される",
+    "UserCard: lastLoginAt=undefinedのとき「ログイン履歴なし」が表示される",
+    "一覧ページ: ローディング中は「読み込み中...」が表示される",
+    "一覧ページ: エラー時はエラーメッセージが表示される",
+    "一覧ページ: 正常時にユーザー名と最終ログイン日が表示される"
+  ],
+  "architecture": "既存のgetUser/useUserパターンを踏襲し、型定義→Route Handler→APIクライアント→Hook→コンポーネント→ページの順に依存関係を整理。UserCardは後方互換性を保ちlastLoginAtをoptionalとして追加。",
+  "subtasks": [
+    {
+      "id": 1,
+      "title": "型定義の拡張と Route Handler の新規作成"
+    },
+    {
+      "id": 2,
+      "title": "APIクライアントへの getUsers 追加"
+    },
+    {
+      "id": 3,
+      "title": "useUsers フックの新規作成"
+    },
+    {
+      "id": 4,
+      "title": "UserCard コンポーネントへの最終ログイン日表示追加"
+    },
+    {
+      "id": 5,
+      "title": "ユーザー一覧ページの新規作成"
+    }
+  ]
+}
