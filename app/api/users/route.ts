@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { User } from '@/src/types/user';
+import { User } from '../../../src/types/user';
 
 const mockUsers: User[] = [
   {
