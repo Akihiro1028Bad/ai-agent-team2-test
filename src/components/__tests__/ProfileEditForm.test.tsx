@@ -203,6 +203,108 @@ describe('ProfileEditForm', () => {
     });
   });
 
+  it('website の前後に空白があっても https:// で始まればエラーにならない', async () => {
+    render(
+      <ProfileEditForm
+        profile={{ ...mockProfile, website: '' }}
+        onSave={mockOnSave}
+        onCancel={mockOnCancel}
+      />
+    );
+
+    const websiteInput = screen.getByLabelText('Webサイト');
+    await userEvent.type(websiteInput, ' https://example.com ');
+
+    fireEvent.submit(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('URLは https:// で始めてください')).not.toBeInTheDocument();
+      expect(mockOnSave).toHaveBeenCalledWith(
+        expect.objectContaining({ website: 'https://example.com' })
+      );
+    });
+  });
+
+  it('website の末尾に空白があっても https:// で始まればエラーにならない', async () => {
+    render(
+      <ProfileEditForm
+        profile={{ ...mockProfile, website: '' }}
+        onSave={mockOnSave}
+        onCancel={mockOnCancel}
+      />
+    );
+
+    const websiteInput = screen.getByLabelText('Webサイト');
+    await userEvent.type(websiteInput, 'https://example.com ');
+
+    fireEvent.submit(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('URLは https:// で始めてください')).not.toBeInTheDocument();
+      expect(mockOnSave).toHaveBeenCalledWith(
+        expect.objectContaining({ website: 'https://example.com' })
+      );
+    });
+  });
+
+  it('空白のみの website は空として扱われ URL チェックをスキップする', async () => {
+    render(
+      <ProfileEditForm
+        profile={{ ...mockProfile, website: '' }}
+        onSave={mockOnSave}
+        onCancel={mockOnCancel}
+      />
+    );
+
+    const websiteInput = screen.getByLabelText('Webサイト');
+    await userEvent.type(websiteInput, '   ');
+
+    fireEvent.submit(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('URLは https:// で始めてください')).not.toBeInTheDocument();
+      expect(mockOnSave).toHaveBeenCalledWith(
+        expect.objectContaining({ website: undefined })
+      );
+    });
+  });
+
+  it('複数フィールドが同時にエラーの場合、表示順は name → bio → location → website の順で保証される', async () => {
+    render(
+      <ProfileEditForm
+        profile={{ ...mockProfile, bio: '', website: '' }}
+        onSave={mockOnSave}
+        onCancel={mockOnCancel}
+      />
+    );
+
+    // name を空にする
+    const nameInput = screen.getByDisplayValue('テストユーザー');
+    await userEvent.clear(nameInput);
+
+    // bio を201文字にする
+    const bioTextarea = screen.getByLabelText('自己紹介');
+    fireEvent.change(bioTextarea, { target: { value: 'あ'.repeat(201) } });
+
+    // website を http:// にする
+    const websiteInput = screen.getByLabelText('Webサイト');
+    await userEvent.type(websiteInput, 'http://example.com');
+
+    fireEvent.submit(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('名前は必須です')).toBeInTheDocument();
+      expect(screen.getByText('自己紹介は200文字以内で入力してください')).toBeInTheDocument();
+      expect(screen.getByText('URLは https:// で始めてください')).toBeInTheDocument();
+    });
+
+    // JSX の描画順（name → bio → location → website）がエラー表示順を保証していることを確認
+    const errorMessages = screen.getAllByText(/名前は必須です|自己紹介は200文字以内で入力してください|URLは https:\/\/ で始めてください/);
+    expect(errorMessages[0]).toHaveTextContent('名前は必須です');
+    expect(errorMessages[1]).toHaveTextContent('自己紹介は200文字以内で入力してください');
+    expect(errorMessages[2]).toHaveTextContent('URLは https:// で始めてください');
+  });
+
   it('保存中はボタンが無効化される', async () => {
     let resolveOnSave: () => void;
     mockOnSave.mockImplementation(

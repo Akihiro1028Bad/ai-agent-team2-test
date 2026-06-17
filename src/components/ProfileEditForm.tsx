@@ -43,7 +43,8 @@ export const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
     if (location.length > 100) {
       newErrors.location = '所在地は100文字以内で入力してください';
     }
-    if (website && !website.startsWith('https://')) {
+    const trimmedWebsite = website.trim();
+    if (trimmedWebsite && !trimmedWebsite.startsWith('https://')) {
       newErrors.website = 'URLは https:// で始めてください';
     }
     return newErrors;
