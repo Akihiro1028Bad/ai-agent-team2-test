@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import ProfilePage from '../page';
+import ProfileClient from '../ProfileClient';
 import { getUserProfile, updateUserProfile } from '../../../src/api/client';
 
 jest.mock('../../../src/api/client');
@@ -19,22 +19,25 @@ const mockProfile = {
   createdAt: new Date('2024-01-01'),
 };
 
-describe('ProfilePage', () => {
+describe('ProfileClient', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('ローディング中は「読み込み中...」が表示される', () => {
+  it('ローディング中は role="status" を持つ要素が表示される', () => {
     mockGetUserProfile.mockReturnValue(new Promise(() => {}));
 
-    render(<ProfilePage />);
-    expect(screen.getByText('読み込み中...')).toBeInTheDocument();
+    render(<ProfileClient userId="current-user-id" />);
+
+    const statusEl = screen.getByRole('status');
+    expect(statusEl).toBeInTheDocument();
+    expect(statusEl).toHaveTextContent('読み込み中...');
   });
 
   it('プロフィールが正常に表示される', async () => {
     mockGetUserProfile.mockResolvedValue(mockProfile);
 
-    render(<ProfilePage />);
+    render(<ProfileClient userId="current-user-id" />);
 
     await waitFor(() => {
       expect(screen.getByText('テストユーザー')).toBeInTheDocument();
@@ -44,20 +47,36 @@ describe('ProfilePage', () => {
     expect(screen.getByText('プロフィールを編集')).toBeInTheDocument();
   });
 
-  it('API エラー時にエラーメッセージが表示される', async () => {
+  it('API エラー時にエラーメッセージと再試行ボタンが表示される', async () => {
     mockGetUserProfile.mockRejectedValue(new Error('Fetch failed'));
 
-    render(<ProfilePage />);
+    render(<ProfileClient userId="current-user-id" />);
 
     await waitFor(() => {
       expect(screen.getByText(/エラーが発生しました/)).toBeInTheDocument();
     });
+
+    expect(screen.getByRole('button', { name: '再試行' })).toBeInTheDocument();
+  });
+
+  it('再試行ボタンをクリックすると onRetry コールバックが呼ばれる', async () => {
+    mockGetUserProfile.mockRejectedValue(new Error('Fetch failed'));
+
+    const onRetryMock = jest.fn();
+    render(<ProfileClient userId="current-user-id" onRetry={onRetryMock} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: '再試行' })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '再試行' }));
+    expect(onRetryMock).toHaveBeenCalledTimes(1);
   });
 
   it('編集ボタン押下で編集モードに遷移する', async () => {
     mockGetUserProfile.mockResolvedValue(mockProfile);
 
-    render(<ProfilePage />);
+    render(<ProfileClient userId="current-user-id" />);
 
     await waitFor(() => {
       expect(screen.getByText('プロフィールを編集')).toBeInTheDocument();
@@ -73,7 +92,7 @@ describe('ProfilePage', () => {
     mockGetUserProfile.mockResolvedValue(mockProfile);
     mockUpdateUserProfile.mockResolvedValue({ ...mockProfile, name: '更新名' });
 
-    render(<ProfilePage />);
+    render(<ProfileClient userId="current-user-id" />);
 
     await waitFor(() => {
       expect(screen.getByText('プロフィールを編集')).toBeInTheDocument();
