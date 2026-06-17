@@ -27,3 +27,17 @@
   align-items: center;
   gap: 8px;
 }
+
+.badge {
+  background-color: var(--badge-bg, #e53e3e);
+  color: #fff;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
